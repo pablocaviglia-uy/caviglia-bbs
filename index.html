@@ -151,6 +151,8 @@
             mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px))}
   #gcursor.dwelling .prog{opacity:1}
   #gcursor.fire .ring{transform:scale(1.35);border-color:#fff;box-shadow:0 0 34px rgba(255,255,255,.95),inset 0 0 18px rgba(170,159,255,.7)}
+  #gcursor.grab .ring{transform:scale(.6);background:rgba(170,159,255,.4);border-color:#fff;box-shadow:0 0 26px rgba(124,108,255,.85),inset 0 0 14px rgba(124,108,255,.6)}
+  #gcursor.grab .prog{opacity:0}
   /* dwell fill: grows across the target being held ("the button fills") */
   #dwellfill{position:fixed;left:0;top:0;z-index:22;pointer-events:none;overflow:hidden;opacity:0;
     transition:opacity .12s ease;box-shadow:0 0 0 1.6px rgba(124,108,255,.7)}
@@ -315,6 +317,7 @@
     <div class="gl-title">gesture mode · live</div>
     <div class="gl-row"><span class="gl-k">point</span>move the ring</div>
     <div class="gl-row"><span class="gl-k">hold</span>over a button to click</div>
+    <div class="gl-row"><span class="gl-k">fist</span>grab + drag to scroll</div>
     <div class="gl-row"><span class="gl-k">move</span>hands push the liquid</div>
     <div class="gl-row gl-exit"><span class="gl-k">H</span>exit gesture mode</div>
   </div>
@@ -982,9 +985,9 @@ gestBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.prev
 
 /* ============================================================
    GESTURE LAYER — opt-in hand tracking (MediaPipe Tasks Vision),
-   lazy-loaded from a CDN ONLY when the visitor opts in. Point a
-   hand at the screen to move a cursor; HOLD it over a control for ~1s
-   to "click" (dwell — more reliable than pinch); in the modern era your
+   lazy-loaded from a CDN ONLY when the visitor opts in. Point a hand to move a
+   cursor; HOLD it over a control for ~1s to "click" (dwell — more reliable than
+   pinch); make a FIST to grab and drag-scroll the content; in the modern era your
    hand(s) push and ripple the liquid chrome in real time (landmarks -> shader).
    Reuses the single webcam stream the FX module already owns — it
    never opens a second camera. Inference is 100% local (WASM/WebGL);
@@ -1001,15 +1004,22 @@ const GESTURE = (function(){
   const INFER_MS  = coarse ? 55 : 33;                                          // ~18fps mobile / ~30fps desktop
   const CURSOR_LERP = 0.4;
   const DWELL_MS = 1000, DWELL_GRACE = 220;                                     // hold this long over a target to "click"; tolerate brief tracking blips
+  const DRAG_GAIN = 2.5;                                                        // fist-drag: hand-travel px -> scroll px
 
   let desired=false, active=false, loading=false, gen=0, landmarker=null, loadPromise=null, rafId=null;
   let lastInfer=0, lastVideoTime=-1, ownsCam=false;
   let cursor=null, dwellFill=null, hover=null;
   let cx=0, cy=0, haveCursor=false;
   let dwellEl=null, dwellStart=0, dwellFired=false, lostAt=0;                   // dwell-to-click: which target, since when, did it fire, when did the cursor slip off
+  let grabbing=false, grabAnchorY=0, grabHyS=0, grabScroll=0;                   // fist-grab drag-to-scroll: anchor hand-Y + scrollTop at grab start
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+  // how many fingers are extended (tip farther from the wrist than its PIP joint) — 0-1 = fist/grab, >=3 = open
+  function extendedCount(lm){ const w=lm[0]; let n=0;
+    const P=[[8,6],[12,10],[16,14],[20,18]];
+    for(let k=0;k<4;k++){ if(dist(lm[P[k][0]],w) > dist(lm[P[k][1]],w)*1.05) n++; }
+    return n; }
 
   // ---- on-screen hand cursor + dwell-fill overlay ----
   function ensureCursor(){
@@ -1089,7 +1099,7 @@ const GESTURE = (function(){
     const hands=(res&&res.landmarks)? res.landmarks : [];
     if(!hands.length){
       showCursor(false); clearHover(); clearDwell(); FX.setHands([]);
-      haveCursor=false; return;
+      haveCursor=false; grabbing=false; if(cursor) cursor.classList.remove('grab'); return;
     }
     // every detected hand pushes the liquid (palm = middle-finger MCP; pin = how closed the hand is)
     const shHands=[];
@@ -1100,13 +1110,26 @@ const GESTURE = (function(){
       shHands.push({ ux:(pN.nx-0.5)*(innerWidth/innerHeight), uy:0.5-pN.ny, pinch:pin });
     }
     FX.setHands(shHands);
-    // first hand's index fingertip drives the cursor (smoothed); hold over a target to click it
+    // first hand: open/pointing -> cursor + dwell-click; fist -> grab & drag to scroll the content
     const p=hands[0];
-    const iN=toScreenN(p[8].x, p[8].y);
-    const tx=clamp(iN.nx*innerWidth,0,innerWidth), ty=clamp(iN.ny*innerHeight,0,innerHeight);
+    const ext=extendedCount(p);
+    const palmN=toScreenN(p[9].x, p[9].y), palmY=palmN.ny*innerHeight;
+    const maxScroll=Math.max(0, screenEl.scrollHeight-screenEl.clientHeight);
+    if(!grabbing){ if(ext<=1 && maxScroll>4){ grabbing=true; grabAnchorY=palmY; grabHyS=palmY; grabScroll=screenEl.scrollTop; clearHover(); clearDwell(); } } // closed hand over scrollable content -> grab
+    else if(ext>=3){ grabbing=false; }                                          // hand opened -> release
+    let tx,ty;
+    if(grabbing){
+      grabHyS += (palmY-grabHyS)*0.5;                                            // light smoothing kills shake
+      screenEl.scrollTop = clamp(grabScroll - (grabHyS-grabAnchorY)*DRAG_GAIN, 0, maxScroll);  // content follows the hand
+      tx=clamp(palmN.nx*innerWidth,0,innerWidth); ty=clamp(palmY,0,innerHeight);
+    } else {
+      const iN=toScreenN(p[8].x, p[8].y);                                        // index fingertip drives the cursor
+      tx=clamp(iN.nx*innerWidth,0,innerWidth); ty=clamp(iN.ny*innerHeight,0,innerHeight);
+    }
     if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
     moveCursor(cx,cy); showCursor(true);
-    dwell(hoverTarget(cx,cy), now);
+    if(cursor) cursor.classList.toggle('grab', grabbing);
+    if(grabbing || ext<=1) clearDwell(); else dwell(hoverTarget(cx,cy), now);    // never dwell-click with a closed hand
   }
 
   function loop(now){
@@ -1160,7 +1183,7 @@ const GESTURE = (function(){
       document.body.classList.remove('gesture-load'); gestBtn.removeAttribute('aria-busy');
       active=true; ensureCursor(); reflectSwitches();
       lastInfer=0; lastVideoTime=-1; haveCursor=false; clearDwell();
-      flash('point your hand to move · hold on a button to click');
+      flash('point to move · hold to click · make a fist to drag-scroll');
       if(rafId) cancelAnimationFrame(rafId);                                   // never double-schedule the loop
       rafId=requestAnimationFrame(loop);
     } finally { loading=false; }
@@ -1169,7 +1192,7 @@ const GESTURE = (function(){
     const wasOn=active||desired;
     desired=false; active=false; gen++;                                         // bump epoch -> supersede any in-flight enable()
     if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-    clearHover(); showCursor(false); clearDwell();
+    clearHover(); showCursor(false); clearDwell(); grabbing=false; if(cursor) cursor.classList.remove('grab');
     if(FX.hasGL()) FX.setHands([]);
     if(landmarker){ try{ landmarker.close(); }catch(e){} landmarker=null; }      // tear the model down (frees WASM + GPU)
     if(ownsCam) FX.stopCam();                                                    // stop the cam we started (null-safe; aborts an in-flight acquisition via stopReq)
