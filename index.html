@@ -28,7 +28,7 @@
     --mag:#e26ee2;  --mag-b:#ff9dff;
     --yel:#ffd94a;  --yel-b:#fff0a0;
     --grn:#5cf06f;  --red:#ff5d5d;
-    --wht:#e7e7f0;  --dim:#5f6b86;
+    --wht:#e7e7f0;  --dim:#7f8aa8;  /* dim bumped from #5f6b86 for WCAG AA on the retro panel */
     --blu:#6b78d8;  --accent:#7c6cff;
   }
   *{box-sizing:border-box}
@@ -91,11 +91,8 @@
   a:hover{color:#fff}
 
   .row{display:block;padding:1px 0}
-  .pick{cursor:pointer;border-radius:3px;padding:1px 6px;margin:0 -6px;transition:background .08s}
-  .pick:hover,.pick:focus{background:rgba(120,220,255,.10);outline:none}
-  .pick:hover .key,.pick:focus .key{color:#fff}
-  .key{color:var(--yel-b);font-weight:400}
   .brandModern{display:none}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
   /* input line for the door */
   .inp{position:relative;display:flex;align-items:center;gap:.4ch}
@@ -148,10 +145,7 @@
     border-radius:50%;background:#fff;box-shadow:0 0 6px #fff}
   #gcursor.pinch .ring{transform:scale(.5);border-color:#fff;box-shadow:0 0 30px rgba(255,255,255,.85),inset 0 0 16px rgba(170,159,255,.6)}
   #gcursor.over .ring{border-color:#fff;box-shadow:0 0 24px rgba(255,255,255,.8),inset 0 0 13px rgba(170,159,255,.5)}
-  .pick.ghover{background:rgba(120,220,255,.12)}
-  .pick.ghover .key{color:#fff}
   a.ghover{color:#fff;background:rgba(120,220,255,.14);border-radius:3px}
-  body.modern .pick.ghover{background:rgba(124,108,255,.18);border-color:rgba(124,108,255,.5)}
   body.modern a.ghover{color:#fff;background:rgba(124,108,255,.2)}
   /* gesture legend — persistent "what do the gestures do" guide while gesture mode is live */
   .glegend{position:fixed;left:14px;bottom:14px;z-index:23;display:none;
@@ -167,6 +161,85 @@
     padding:1px 7px;text-align:center;font-size:11px}
   .glegend .gl-exit{margin-top:5px;opacity:.7}
   @media (max-width:520px){ .glegend{font-size:11px;padding:9px 11px} .glegend .gl-k{min-width:40px} }
+
+  /* ===== content system: nav + career timeline + projects (one DOM, two era skins) ===== */
+  .act{cursor:pointer;border-radius:8px}
+  .act:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .act.ghover{box-shadow:0 0 0 1.6px rgba(124,108,255,.65)}
+  .lede{color:var(--wht);max-width:64ch}
+  .arc{margin-top:.55em;max-width:66ch}
+  .tlhint{font-size:.82em;margin:.1em 0 .5em}
+  .retroTag{display:block;margin-top:.15em}
+  /* nav strip */
+  .navbar{display:flex;flex-wrap:wrap;gap:6px;margin:.8em 0 1.1em}
+  .navitem{display:inline-flex;align-items:center;gap:.55ch;padding:4px 10px;color:var(--dim)}
+  .navitem .nk{color:var(--yel-b)}
+  .navitem.navon{color:var(--wht)}
+  .navitem:hover,.navitem:focus-visible{color:var(--wht)}
+  /* career timeline */
+  .tl{margin:.2em 0}
+  .tlentry{padding:6px 8px;margin:2px -8px}
+  .tlhead{display:flex;align-items:baseline;gap:.9ch;flex-wrap:wrap}
+  .tlperiod{color:var(--cyan);min-width:10ch;font-variant-numeric:tabular-nums}
+  .tlid{flex:1;min-width:14ch}
+  .tlco{color:var(--wht)}
+  .tltitle{color:var(--dim)}
+  .tlexp{margin-left:auto;color:var(--dim);font-size:.85em}
+  .tlexp::before{content:"[+]"}
+  .tlentry.open .tlexp::before{content:"[–]"}
+  .tlline{color:var(--cyan-b);margin:.15em 0 0}
+  .tldetail{max-height:0;overflow:hidden;opacity:0;transition:max-height .26s ease,opacity .26s ease}
+  .tlentry.open .tldetail{max-height:440px;opacity:1;margin-top:.45em}
+  .tldet{color:var(--wht);max-width:66ch}
+  .tltech{display:flex;flex-wrap:wrap;gap:5px;margin-top:.55em}
+  .chip{font-size:.8em;color:var(--cyan);border:1px solid rgba(63,212,212,.32);border-radius:999px;padding:1px 9px;white-space:nowrap}
+  .tlentry:hover,.tlentry.ghover{background:rgba(120,220,255,.07)}
+  body.retro .tl{border-left:1px solid rgba(63,212,212,.22);padding-left:12px;margin-left:2px}
+  /* ethos */
+  .ethos{display:flex;flex-direction:column;gap:.1em;margin:.1em 0}
+  .eth{color:var(--wht)}
+  .ethdot{color:var(--mag);margin-right:.6ch}
+  /* door pointer + back-to-board */
+  .doorptr{margin:.2em 0;padding:6px 8px}
+  .doorptr:hover,.doorptr.ghover{background:rgba(226,110,226,.09)}
+  /* projects */
+  .projs{display:flex;flex-direction:column;gap:.6em;margin:.3em 0}
+  .proj{padding:6px 0}
+  .projhead{display:flex;align-items:baseline;gap:1.2ch;flex-wrap:wrap}
+  .projname{color:var(--yel-b)}
+  .projper{color:var(--dim);font-size:.85em}
+  .projblurb{color:var(--wht);margin:.3em 0;max-width:68ch}
+  .projlink{margin-top:.15em;font-size:.9em}
+  /* mini brand on subpages */
+  .brandMiniRow{margin-bottom:.4em}
+  .bm-mini{color:var(--cyan-b);letter-spacing:.14em}
+
+  /* --- modern skin for the content system --- */
+  body.modern .navitem{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:999px;color:#9aa3b8}
+  body.modern .navitem .nk{color:#b9b1ff}
+  body.modern .navitem.navon{background:rgba(124,108,255,.2);border-color:rgba(124,108,255,.5);color:#fff}
+  body.modern .navitem:hover,body.modern .navitem:focus-visible{color:#fff;border-color:rgba(124,108,255,.45)}
+  body.modern .retroTag{display:none}
+  body.modern .tl{position:relative;margin-left:5px;padding-left:20px;border-left:1px solid rgba(255,255,255,.13)}
+  body.modern .tlentry{position:relative;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025);border-radius:12px;padding:11px 15px;margin:9px 0}
+  body.modern .tlentry::before{content:"";position:absolute;left:-25px;top:17px;width:9px;height:9px;border-radius:50%;background:#5a6285;border:2px solid #0c0e18}
+  body.modern .tlentry.tier-featured::before{background:var(--accent);box-shadow:0 0 10px rgba(124,108,255,.85)}
+  body.modern .tlentry:hover,body.modern .tlentry.ghover{background:rgba(124,108,255,.1);border-color:rgba(124,108,255,.38)}
+  body.modern .tlperiod{color:#a99fff;font-size:.86em}
+  body.modern .tlco{color:#fff;font-weight:500}
+  body.modern .tltitle{color:#8b93a8}
+  body.modern .tlline{color:#cdd3e3}
+  body.modern .tldet{color:#dfe3ee}
+  body.modern .chip{color:#b9b1ff;border-color:rgba(169,159,255,.3);background:rgba(124,108,255,.08)}
+  body.modern .ethos{gap:.35em}
+  body.modern .eth{color:#dfe3ee}
+  body.modern .ethdot{color:#a99fff}
+  body.modern .doorptr{border:1px solid rgba(255,255,255,.07);border-radius:10px}
+  body.modern .doorptr:hover,body.modern .doorptr.ghover{background:rgba(124,108,255,.12);border-color:rgba(124,108,255,.35)}
+  body.modern .proj{border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:.7em}
+  body.modern .projname{color:#fff;font-weight:500}
+  body.modern .bm-mini{color:#fff}
+  @media (pointer:coarse){ .navitem{padding:9px 14px;min-height:44px} }
 
   /* ---------- MODERN era skin (same DOM, new dressing) ---------- */
   body.modern .bbs{
@@ -187,12 +260,6 @@
   body.modern a:hover{color:#fff;border-color:#fff}
   body.modern .hdr .hdrT{font-size:1.18em;font-weight:500;letter-spacing:.06em;color:#fff}
   body.modern .sepln{display:none}
-  body.modern .pick{display:flex;align-items:center;gap:.7em;border:1px solid rgba(255,255,255,.07);
-    background:rgba(255,255,255,.035);border-radius:12px;padding:11px 14px;margin:7px 0}
-  body.modern .pick:hover,body.modern .pick:focus{background:rgba(124,108,255,.14);border-color:rgba(124,108,255,.4)}
-  body.modern .pick .key{display:inline-flex;align-items:center;justify-content:center;min-width:1.8em;height:1.8em;
-    border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-    color:#cdd3e3;font-family:"VT323",monospace;font-size:1.05em}
   body.modern .brandModern{display:block;margin-bottom:14px}
   body.modern .brandModern .bm-name{font-size:clamp(22px,3vw,30px);font-weight:500;letter-spacing:.18em;color:#fff}
   body.modern .brandModern .bm-sub{font-size:13px;color:#8b93a8;letter-spacing:.05em;margin-top:2px}
@@ -201,7 +268,8 @@
   body.modern .status b{color:#b9b1ff}
 
   @media (prefers-reduced-motion:reduce){ .bbs::after{animation:none;opacity:.92} .cur{animation:none}
-    .bbs,.status{transition:none} #gcursor,#gcursor .ring{transition:none} #gestBtn .dot{animation:none} }
+    .bbs,.status{transition:none} #gcursor,#gcursor .ring{transition:none} #gestBtn .dot{animation:none}
+    .tldetail{transition:none} }
 </style>
 </head>
 <body class="retro">
@@ -215,6 +283,7 @@
       <span>Sysop: Pablo</span>
     </div>
   </div>
+  <div id="srlive" class="sr-only" aria-live="polite" role="status"></div>
 
   <div class="hud">
     <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" aria-checked="false" tabindex="0" title="Switch era — 1989 BBS / 2025 liquid chrome (key: T)">
@@ -249,7 +318,7 @@ const PHONE_PARTS = ['+598','91','744','036'];
 const phoneDisp = PHONE_PARTS.join(' ');
 const phoneTel  = 'tel:' + PHONE_PARTS.join('').replace(/[^\d+]/g,'');
 
-let mode = 'boot';   // boot | menu | pager | door | denied | granted | bye
+let mode = 'boot';   // boot | home | projects | contact | door | denied | granted | bye
 
 function clear(){ screenEl.innerHTML=''; }
 function add(html, cls){ const d=document.createElement('div'); d.className='row'+(cls?' '+cls:''); d.innerHTML=html; screenEl.appendChild(d); screenEl.scrollTop=screenEl.scrollHeight; return d; }
@@ -287,80 +356,145 @@ async function boot(){
   add('<span class="wht">Welcome to CAVIGLIA BBS — the only node, always open.</span>');
   add('<span class="dim">You are caller #'+(1000+Math.floor(Math.random()*8999))+'. No download ratio. Be cool.</span>');
   await wait(1200);
-  drawMenu(true);
+  goHome(true);   // lands on the career timeline and settles into the 2025 skin
 }
 
-function drawMenu(first){
-  clear(); mode='menu';
-  screenEl.appendChild(makeEl(LOGO,'row logoRetro'));
-  screenEl.appendChild(makeEl('<div class="bm-name">CAVIGLIA</div><div class="bm-sub">node 1 · sysop pablo</div>','row brandModern'));
-  add('&nbsp;');
-  hdr('MAIN MENU');
-  sep();
-  menuRow('A','About the sysop');
-  menuRow('W','Work / résumé');
-  menuRow('C','Contact &amp; links');
-  menuRow('G','The Door','<span class="dim">‹ sysop\'s game ›</span>');
-  menuRow('Q','Log off');
-  sep();
-  add('<span class="deco cyanb">└─</span>','sepln');
-  add('&nbsp;');
-  add('<span class="dim">Pick a letter — press it, or tap a line. (on a phone, just tap.)</span>');
-}
-function makeEl(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;return d;}
-function menuRow(k,label,extra){
-  const tail = extra ? '  '+extra : '';
-  const d=add('<span class="deco cyan">│  </span><span class="key"><span class="deco">[</span>'+k+'<span class="deco">]</span></span>  <span class="wht">'+label+'</span>'+tail,'pick');
-  d.tabIndex=0; d.dataset.key=k.toLowerCase();
-  d.addEventListener('click',e=>{ e.stopPropagation(); choose(k.toLowerCase()); });
-  d.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); choose(k.toLowerCase()); } });
-}
+/* ---------- CV content (curated from the real 20-year career) ---------- */
+const CV = {
+  tagline: "software engineer · 20+ years · builds for the edges — bad networks, odd hardware",
+  about: "Pablo Caviglia, technical lead at Senaptec. I build Android and Kotlin Multiplatform apps with a specialty in offline-first systems — software that stays correct on bad networks and on kiosk hardware that can lose power mid-write. Full stack when a problem needs it — Kotlin/Compose on the client, Django/Python on the backend, Vue on the web — and embedded when it gets down to the metal. I treat simplicity as a real constraint, not a nice-to-have.",
+  arc: "Started as a BBS-era kid in Uruguay, UyLug member, Sun-certified on Java 2 by 2003. The first two decades were deep J2EE — WebSphere, AS/400, EJB, lottery terminals, POS gear that shipped on 100,000+ clients — then a move to Android and Kotlin Multiplatform, with embedded C for a slot-machine microcontroller along the way. Now: a custom offline-first sync framework at Senaptec, and the rider app for Zoox's self-driving cars.",
+  ethos: [
+    "I'd rather delete code than add it.",
+    "Name things so they explain themselves.",
+    "Simplicity is a constraint, not a nice-to-have.",
+    "Happiest where the constraints are real — bad networks, odd hardware."
+  ],
+  timeline: [
+    {period:"Mar 2023 — now", company:"Senaptec", title:"Technical Lead", headline:"Own the architecture across mobile, backend, and web — and keep it simple.", detail:"Built and still maintain a custom offline-first sync framework so the product stays reliable on flaky networks and constrained kiosk hardware. Added an offline athlete-ranking system backed by real statistics.", tech:["Kotlin","KMP","Django","Vue.js"], tier:"featured"},
+    {period:"2024 — 2025", company:"Zoox", title:"Android Engineer · contract", headline:"Rider app for driverless ride-hailing, where reliability isn't optional.", detail:"Senior Android on the rider-facing app for autonomous cars. Built and kept features alive in Kotlin, wired up behavior analytics, and worked cross-team on the safety-critical parts.", tech:["Kotlin","Android","Amplitude"], tier:"featured"},
+    {period:"2021 — 2023", company:"Senaptec", title:"Technical Lead", headline:"Rebuilt the stack: Java → Kotlin, Elixir → Python.", detail:"Led the overhaul end to end — migrated the core codebase and the backend, and dragged the Android projects from API 24 up to 33.", tech:["Kotlin","Python","Android"], tier:"compact"},
+    {period:"2019 — 2023", company:"BairesDev", title:"Senior Software Engineer", headline:"Wrote the BLE driver that flies Parrot drones.", detail:"Deep Bluetooth Low Energy work for reliable wireless control of FT Aviator drones, with the test flights to prove it. Also re-laid Outcome Health's architecture and its test framework.", tech:["Kotlin","BLE","MVVM","AndroidX"], tier:"featured"},
+    {period:"2018 — 2019", company:"Hipcam Global", title:"Senior Software Engineer", headline:"Shipped a smart camera on custom hardware, down to the C layer.", detail:"Led the team on Hipcam's flagship Android camera. Architected the native C/C++ and Kotlin layers for device comms and security; folded in offline plus real-time cloud speech recognition.", tech:["Android","C/C++","Kotlin"], tier:"featured"},
+    {period:"2015 — 2018", company:"Tarmac.IO", title:"Senior Android / Java / PHP Dev", headline:"One headless Node REST backend feeding both Angular and Android.", detail:"Used AWS Lambda to auto-generate image datasets and Google Cloud Vision for in-game image recognition. Client work included Uniphy Health and Flipgrid.", tech:["Node.js","Android","Angular","AWS"], tier:"compact"},
+    {period:"2014 — 2015", company:"Scanntech", title:"Senior Android Developer", headline:"POS app running on 100,000+ clients across South America.", detail:"Main Android dev on iPos, the flagship point-of-sale. Built a mobile ORM, ran a JEE server on-device (I-Jetty), hardened the Android OS, and wrote native drivers.", tech:["Android","JEE","Native drivers"], tier:"featured"},
+    {period:"2013 — 2014", company:"Globant", title:"Senior Java Consultant", headline:"CQ5 (Adobe AEM) components and the media pipeline behind them.", detail:"Built UI components plus video and image multi-resolution processing that held up across screens and bandwidths.", tech:["Java","Adobe AEM","CQ5"], tier:"compact"},
+    {period:"2012 — 2013", company:"Independent", title:"Embedded / Game Developer", headline:"A full slot-machine platform, from the 3D game down to the PIC firmware.", detail:"Java 3D game plus an Android port, and embedded C on a PIC board driving the hopper, coin selector, security door, buttons, and lights.", tech:["Java","Embedded C","PIC","Android"], tier:"compact"},
+    {period:"2009 — 2011", company:"Audiodes", title:"Game / JEE Developer", headline:"UniWar — the strategy game, and the multiplayer backend under it.", detail:"Built the J2ME game, ported it to Android, and wrote the backend for matches, community, and chat. 2nd place, 2011 Best Multiplayer Game (bestappever.com). Also built SoundDogs and an SFX game applet.", tech:["J2ME","Android","Java"], tier:"featured"},
+    {period:"2008", company:"Banca de Quinielas", title:"Senior JEE Engineer", headline:"The software running Montevideo's official lottery.", detail:"Replaced legacy modules, digitized the betting agencies with new POS devices, and wrote the server-side logic that receives, validates, and processes every bet.", tech:["J2EE","EJB3","JPA","Web Services"], tier:"featured"},
+    {period:"2001 — 2007", company:"Sofis · AreaNet · Soluziona · Universitario", title:"JEE Software Developer", headline:"Where it started: J2EE and WebSphere for US and Brazilian shops.", detail:"AS/400 systems with RPG and DB2 stored procedures, an identity-centralization module spanning Cisco, Lotus Domino, and Novell, and near-real-time truck tracking via RF on a virtual depot map. Sometimes flown on-site to teach clients their own architecture.", tech:["J2EE","WebSphere","AS/400","EJB"], tier:"compact"}
+  ],
+  projects: [
+    {name:"Slot machines", period:"2012–2013", blurb:"A full slot-machine platform, top to bottom: a Java 3D game running on a PIC-based board I wrote the embedded C for, driving the hopper, coin selector, security door, buttons, and lights. Later ported the game to Android.", tech:["Java 3D","PIC microcontroller","embedded C","Android"]},
+    {name:"UniWar", period:"2009–2010", blurb:"Turn-based strategy game built for J2ME, then ported to Android (still on Google Play). I was also the main backend dev — multiplayer matches, community, in-game chat. 2nd place, Best Multiplayer Game 2011 (bestappever.com).", tech:["J2ME","Android","Java","multiplayer backend"]},
+    {name:"FT Aviator — Parrot drone BLE driver", period:"2019", blurb:"A Bluetooth Low Energy driver to fly Parrot drones, for Fluidity Technologies. Deep in the BLE stack, where the radio is flaky and the testing is a real flight. (via BairesDev)", tech:["Bluetooth Low Energy","Android","Kotlin"]},
+    {name:"UScoring", period:"2017–2018", blurb:"Alternative credit-scoring platform — founder and dev lead. A headless Android library gathered the signals (contacts, calendar, photos, location, app usage), a Node.js backend collected them, and Python ML turned them into a score.", tech:["Android","Node.js","Python ML","CI/CD"]},
+    {name:"Mobirain", period:"2015", blurb:"Drive your Android phone from any desktop or mobile browser — file manager, SMS, contacts. Scan a QR to pair, then websockets and iframes talk to a tiny embedded JEE server on the device.", tech:["Android","websockets","QR pairing","embedded JEE"], link:BITBUCKET},
+    {name:"Wallcentral", period:"2014", blurb:"Wallpaper search app (Google Play + Amazon) backed by a Spring service that searches 2,000,000+ image descriptions in real time out of a non-relational store. Ran on Hetzner.", tech:["Android","Spring","NoSQL","Hetzner"]},
+    {name:"The Reader Engine", period:"2014", blurb:"A platform for publishing and reading comic-style content, with vignette effects and auto-navigation. The interesting part is a custom Android/REST protocol for transferring and securing the images.", tech:["Android","Spring MVC/Data/Security","ElasticSearch","Realm"], link:BITBUCKET}
+  ]
+};
 
-function pager(){ mode='pager'; add('&nbsp;'); add('<span class="dim">‹ tap anywhere or press any key to return to the menu ›</span>'); }
+function el(cls,html){const d=document.createElement('div');if(cls)d.className=cls;if(html!=null)d.innerHTML=html;return d;}
+// the one interaction contract: anything actionable is keyboard-focusable, click/Enter/Space, gesture-pinchable
+function act(node,onAct){ node.tabIndex=0; node.classList.add('act');
+  node.addEventListener('click',e=>{ e.stopPropagation(); onAct(e); });
+  node.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); onAct(e); } });
+  return node; }
 
-function choose(k){
-  if(mode!=='menu') return;
-  if(k==='a') scrAbout();
-  else if(k==='w') scrWork();
-  else if(k==='c') scrContact();
-  else if(k==='g') scrDoor();
-  else if(k==='q') scrBye();
+// persistent section nav (dual input: tap or the hotkey letter) — always know where you are
+const NAV=[['career',()=>goHome(),''],['projects',()=>scrProjects(),'P'],['contact',()=>scrContact(),'C'],['the door',()=>scrDoor(),'G'],['log off',()=>scrBye(),'Q']];
+function navBar(active){
+  const bar=el('navbar');
+  NAV.forEach(([label,fn,key])=>{
+    const it=el('navitem'+(active===label?' navon':''), (key?'<span class="nk">'+key+'</span>':'<span class="nk nkhome">⌂</span>')+'<span class="nl">'+label+'</span>');
+    act(it,fn); bar.appendChild(it);
+  });
+  screenEl.appendChild(bar);
 }
+function brand(){
+  screenEl.appendChild(el('row logoRetro',LOGO));
+  screenEl.appendChild(el('row brandModern','<div class="bm-name">CAVIGLIA</div><div class="bm-sub">'+CV.tagline+'</div>'));
+  add('<span class="dim">'+CV.tagline+'</span>','retroTag');
+}
+function brandMini(label){ screenEl.appendChild(el('row brandMiniRow','<span class="bm-mini">CAVIGLIA</span><span class="dim"> · '+label+'</span>')); }
+function backToBoard(){ const b=el('doorptr backline','<span class="yelb">‹ back to the board</span> <span class="dim">· Esc / tap</span>'); act(b,()=>goHome()); screenEl.appendChild(b); }
+function settleModern(){ if(FX.hasGL() && !document.body.classList.contains('modern')) FX.switchEra({x:innerWidth/2,y:innerHeight*0.42}); reflectSwitches(); }
+// a11y: announce view changes (full redraws blank #screen, dropping focus to <body>)
+function announce(text){ const s=document.getElementById('srlive'); if(s) s.textContent=text; }
+function focusNav(){ const on=screenEl.querySelector('.navitem.navon'); if(on) on.focus({preventScroll:true}); }
 
-function scrAbout(){
-  clear();
-  hdr('THE SYSOP'); sep();
-  add('<span class="wht">Pablo Caviglia — software engineer, 20+ years.</span>');
+function goHome(first){
+  clear(); mode='home';
+  brand();
   add('&nbsp;');
-  add('I build Android and Kotlin Multiplatform apps, with a specialty in');
-  add('offline-first systems: software that stays correct on bad networks and');
-  add('hardware that can lose power mid-write. Full stack when a problem needs');
-  add('it — Kotlin/Compose, Django/Python, Vue. Some embedded along the way.');
+  add('<span class="wht">'+CV.about+'</span>','lede');
+  add('<span class="dim">'+CV.arc+'</span>','arc');
+  navBar('career');
+  hdr('CAREER');
+  add('<span class="dim">most recent first · tap a role to expand it</span>','tlhint');
+  renderTimeline();
   add('&nbsp;');
-  add('<span class="dim">I\'d rather delete code than add it.</span>');
-  pager();
+  hdr('WHAT I OPTIMIZE FOR');
+  const er=el('ethos'); CV.ethos.forEach(x=>er.appendChild(el('eth','<span class="ethdot">»</span>'+x))); screenEl.appendChild(er);
+  add('&nbsp;');
+  const dp=el('doorptr','<span class="dim">curious? the board keeps a door for engineers · </span><span class="yelb">[G] the door ›</span>'); act(dp,()=>scrDoor()); screenEl.appendChild(dp);
+  add('&nbsp;');
+  if(first) settleModern();
+  screenEl.scrollTop=0; announce('Career — the timeline is the home view.'); focusNav();
 }
-function scrWork(){
-  clear();
-  hdr('WORK'); sep();
-  add('<span class="yel">focus</span>');
-  add('  <span class="cyan">·</span> Android · Kotlin Multiplatform · Jetpack Compose');
-  add('  <span class="cyan">·</span> offline-first architecture &amp; sync');
-  add('  <span class="cyan">·</span> backends in Django/Python · web in Vue');
-  add('  <span class="cyan">·</span> embedded / native (C++, NDK), custom hardware, sensors');
-  add('&nbsp;');
-  add('I\'m at my best where the constraints are real — bad connectivity,');
-  add('odd hardware, and code that has to stay simple as it scales.');
-  pager();
+function renderTimeline(){
+  const tl=el('tl');
+  CV.timeline.forEach((e,i)=>{
+    const open=i===0;
+    const entry=el('tlentry tier-'+e.tier+(open?' open':''));
+    entry.setAttribute('role','button');
+    entry.setAttribute('aria-expanded', open?'true':'false');
+    entry.appendChild(el('tlhead',
+      '<span class="tlperiod">'+e.period+'</span>'+
+      '<span class="tlid"><span class="tlco">'+e.company+'</span> <span class="tltitle">'+e.title+'</span></span>'+
+      '<span class="tlexp" aria-hidden="true"></span>'));
+    entry.appendChild(el('tlline',e.headline));
+    const detail=el('tldetail','<div class="tldet">'+e.detail+'</div><div class="tltech">'+e.tech.map(t=>'<span class="chip">'+t+'</span>').join('')+'</div>');
+    detail.id='tld'+i; detail.setAttribute('aria-hidden', open?'false':'true');
+    entry.setAttribute('aria-controls', detail.id);
+    entry.appendChild(detail);
+    act(entry,()=>{ const o=entry.classList.toggle('open'); entry.setAttribute('aria-expanded',o?'true':'false'); detail.setAttribute('aria-hidden',o?'false':'true'); });
+    tl.appendChild(entry);
+  });
+  screenEl.appendChild(tl);
+}
+function scrProjects(){
+  clear(); mode='projects';
+  brandMini('projects'); navBar('projects');
+  hdr('SELECTED PROJECTS');
+  add('<span class="dim">things I built outside the day job — games, hardware, hacks</span>','tlhint');
+  const wrap=el('projs');
+  CV.projects.forEach(p=>{
+    const card=el('proj');
+    card.appendChild(el('projhead','<span class="projname">'+p.name+'</span><span class="projper">'+p.period+'</span>'));
+    card.appendChild(el('projblurb',p.blurb));
+    card.appendChild(el('tltech',p.tech.map(t=>'<span class="chip">'+t+'</span>').join('')));
+    if(p.link){ card.appendChild(el('projlink','<a href="'+p.link+'" target="_blank" rel="noopener">'+p.link.replace(/^https?:\/\//,'')+' ↗</a>')); }
+    wrap.appendChild(card);
+  });
+  screenEl.appendChild(wrap);
+  add('&nbsp;'); backToBoard();
+  screenEl.scrollTop=0; announce('Projects'); focusNav();
 }
 function scrContact(){
-  clear();
-  hdr('CONTACT'); sep();
-  add('<span class="yel">linkedin</span>  <span class="dim">→</span> <a href="'+LINKEDIN+'" target="_blank" rel="noopener">linkedin.com/in/pablo-caviglia</a>');
-  add('<span class="yel">code</span>      <span class="dim">→</span> <a href="'+BITBUCKET+'" target="_blank" rel="noopener">bitbucket.org/pablocaviglia</a>');
+  clear(); mode='contact';
+  brandMini('contact'); navBar('contact');
+  hdr('FIND ME');
+  add('<span class="yelb">linkedin</span>  <span class="dim">→</span> <a href="'+LINKEDIN+'" target="_blank" rel="noopener">linkedin.com/in/pablo-caviglia</a>');
+  add('<span class="yelb">code</span>      <span class="dim">→</span> <a href="'+BITBUCKET+'" target="_blank" rel="noopener">bitbucket.org/pablocaviglia</a>');
+  add('<span class="yelb">call</span>      <span class="dim">→</span> <a href="'+phoneTel+'" style="border-bottom:1px dotted currentColor;text-decoration:none">'+phoneDisp+'</a> <span class="dim">(yes, the sysop\'s real line)</span>');
   add('&nbsp;');
-  add('<span class="dim">yes — that\'s me. this board is the proof.</span>');
-  pager();
+  add('<span class="dim">Uruguay · english (full professional) · spanish (native)</span>');
+  add('&nbsp;');
+  add('<span class="dim">went all the way down to the console? say </span><span class="yelb">"node 1"</span><span class="dim"> when you reach out.</span>');
+  add('&nbsp;'); backToBoard();
+  screenEl.scrollTop=0; announce('Contact'); focusNav();
 }
 
 /* ---------- THE DOOR (real puzzle) ---------- */
@@ -375,17 +509,16 @@ function scrDoor(){
   add('&nbsp;');
   const line=add('<span class="mag">ACCESS CODE ›</span> <span class="inp"><span class="field"><span class="typed" id="typed"></span><span class="cur"></span><input id="capture" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="access code"></span></span>');
   add('&nbsp;');
-  const backLine=add('<span class="dim">[Q] / tap here to slink back to the menu</span>');
-  backLine.setAttribute('data-gback','1');
-  backLine.addEventListener('click',e=>{ if(mode==='door'){ e.stopPropagation(); drawMenu(); } });
+  const backLine=add('<span class="dim">[Q] / tap here to slink back to the board</span>');
+  act(backLine,()=>{ if(mode==='door') goHome(); });
   const cap=document.getElementById('capture'), typed=document.getElementById('typed');
   cap.addEventListener('input',()=>{ buf=cap.value; typed.textContent=buf; });
   cap.addEventListener('keydown',e=>{
     // these keys act here AND change the mode — stop them so the same keystroke
     // doesn't also bubble to the global "press any key to advance" handler.
     if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); submitDoor(); }
-    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); drawMenu(); }
-    else if(e.key.toLowerCase()==='q' && buf==='' ){ e.preventDefault(); e.stopPropagation(); drawMenu(); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); goHome(); }
+    else if(e.key.toLowerCase()==='q' && buf==='' ){ e.preventDefault(); e.stopPropagation(); goHome(); }
   });
   setTimeout(()=>cap.focus(),30);
 }
@@ -422,7 +555,7 @@ function scrGranted(){
   add('&nbsp;');
   add('<span class="dim">— Pablo, sysop. and there\'s one more layer for the stubborn. (console.)</span>');
   if(!window.__deep){ window.__deep=true; wireShell(); }
-  add('<span class="yel">[ tap / press any key ]</span> return to menu');
+  add('<span class="yel">[ tap / press any key ]</span> return to the board');
 }
 /* ---------- THE DOOR · layer 3 (maintenance shell, console-only) ----------
    Reached only after ACCESS GRANTED, when the visitor opens the console.
@@ -497,18 +630,16 @@ function scrBye(){
   add('<span class="dim">Logging off...</span>');
   setTimeout(()=>{
     add('&nbsp;'); add('<pre class="red">NO CARRIER</pre>'); add('&nbsp;');
-    const rd=add('<span class="yel pick">[ redial ]</span>');
-    rd.style.cursor='pointer'; rd.dataset.redial='1';
-    rd.addEventListener('click',e=>{ e.stopPropagation(); boot(); });
+    const rd=add('<span class="yelb">[ redial ]</span>');
+    rd.dataset.redial='1'; act(rd,()=>boot());
   }, 500);
 }
 
 /* ---------- global input ---------- */
 // shared "advance" used by both keydown and the gesture pinch (keeps them in lockstep)
 function advanceFromInput(){
-  if(mode==='pager') drawMenu();
-  else if(mode==='denied') scrDoor();
-  else if(mode==='granted') drawMenu();
+  if(mode==='denied') scrDoor();
+  else if(mode==='granted') goHome();
   else if(mode==='bye') boot();
 }
 document.addEventListener('keydown', e=>{
@@ -521,14 +652,22 @@ document.addEventListener('keydown', e=>{
   if(lk==='t'){ e.preventDefault(); toggleEra(); return; } // global: switch era
   if(lk==='v'){ e.preventDefault(); toggleCam(); return; } // global: camera FX
   if(lk==='h'){ e.preventDefault(); toggleGesture(); return; } // global: gesture (hand) control
-  if(mode==='menu'){ if('awcgq'.includes(lk)) choose(lk); }
-  else advanceFromInput();
+  if(mode==='home'||mode==='projects'||mode==='contact'){
+    if(e.key==='Escape'){ goHome(); return; }
+    if(lk==='p'){ scrProjects(); return; }
+    if(lk==='c'){ scrContact(); return; }
+    if(lk==='g'){ scrDoor(); return; }
+    if(lk==='q'){ scrBye(); return; }
+    return;                                   // other keys: just let the visitor scroll/interact
+  }
+  if(mode==='door'){ if(e.key==='Escape'||lk==='q') goHome(); return; }  // #capture owns typing; this catches Esc/q when focus drifted off
+  advanceFromInput();                          // denied / granted / bye
 });
 screenEl.addEventListener('click', e=>{
   if(e.target.closest('a')) return;
-  if(mode==='pager'){ drawMenu(); }
-  else if(mode==='denied'){ scrDoor(); }
-  else if(mode==='granted' && !e.target.closest('a')){ drawMenu(); }
+  if(e.target.closest('.act')) return;         // actionable items run their own handlers
+  if(mode==='denied'){ scrDoor(); }
+  else if(mode==='granted'){ goHome(); }
   else if(mode==='bye' && e.target.dataset.redial){ boot(); }
 });
 
@@ -883,12 +1022,12 @@ const GESTURE = (function(){
   }
 
   // ---- gesture -> page ----
-  const ACTIONABLE='.pick,a,[role="switch"],[data-gback],[data-redial]';
+  const ACTIONABLE='.act,a,[role="switch"]';
   function updateHover(x,y){
     const el=document.elementFromPoint(x,y);
-    const tgt=(el&&el.closest)? el.closest('.pick,a') : null;                      // highlight rows AND links
+    const tgt=(el&&el.closest)? el.closest('.act,a') : null;                       // highlight actionable items AND links
     if(tgt!==hover){ if(hover) hover.classList.remove('ghover'); hover=tgt||null; if(hover) hover.classList.add('ghover'); }
-    const onTarget=!!((el&&el.closest&&el.closest(ACTIONABLE)) || mode==='pager'||mode==='denied'||mode==='granted'||mode==='bye');
+    const onTarget=!!((el&&el.closest&&el.closest(ACTIONABLE)) || mode==='denied'||mode==='granted'||mode==='bye');
     if(cursor) cursor.classList.toggle('over', onTarget);                          // tint the cursor when a pinch would do something
   }
   function firePinch(x,y){
@@ -896,9 +1035,9 @@ const GESTURE = (function(){
     const el=document.elementFromPoint(x,y);
     if(el&&el.closest){
       const a=el.closest('a'); if(a&&a.href){ const w=window.open(a.href,'_blank','noopener'); if(!w) flash('pinch can\'t open links — tap it'); return; } // rAF stack lacks user-activation; may be popup-blocked
-      const ctrl=el.closest('[role="switch"],.pick,[data-gback],[data-redial]'); if(ctrl){ ctrl.click(); return; }
+      const ctrl=el.closest('[role="switch"],.act'); if(ctrl){ ctrl.click(); return; }
     }
-    if(mode==='pager'||mode==='denied'||mode==='granted'||mode==='bye') advanceFromInput();
+    if(mode==='denied'||mode==='granted'||mode==='bye') advanceFromInput();
   }
 
   function processResults(res, now){

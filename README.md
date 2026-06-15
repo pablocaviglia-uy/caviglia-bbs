@@ -1,26 +1,28 @@
 # CAVIGLIA BBS
 
-A retro, BBS-style interactive terminal that doubles as a personal landing page.
-Single self-contained `index.html` — no build step. The base page has no
-dependencies beyond one Google Font; only the opt-in **gesture mode** lazy-loads a
-hand-tracking runtime from a CDN, and only if you press `H`. Boots like a dial-up
-bulletin board, navigable by hotkeys or tap.
+Pablo Caviglia's CV as a retro, BBS-style interactive terminal — a career timeline
+you scan, expand, and (if you like) reach out and touch with your hands. Single
+self-contained `index.html` — no build step. The base page has no dependencies
+beyond one Google Font; only the opt-in **gesture mode** lazy-loads a hand-tracking
+runtime from a CDN, and only if you press `H`. Boots like a dial-up bulletin board
+and settles into a 2025 "liquid chrome" skin; navigable by hotkeys or tap.
 
 **Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/
 
 ## What it is
 
-A one-page "presentation layer" for Pablo Caviglia, designed to work for two very
+A one-page CV / career showcase for Pablo Caviglia, designed to work for two very
 different visitors at once:
 
-- **Recruiters / non-technical visitors** get an immediately cool thing they can
-  use with zero friction — a single-key (or tappable) menu that surfaces the
-  bio, work focus, and LinkedIn. No puzzle to solve, no dead ends.
+- **Recruiters / non-technical visitors** land on a scannable **career timeline** —
+  20+ years of roles, most-recent-first, each expandable for the detail and the
+  stack — plus selected projects, contact, and LinkedIn. No puzzle, no dead ends.
 - **Engineers** find an optional **Door** (a real puzzle) that rewards curiosity.
 
-Press **`T`** to flip between the 1989 BBS and a 2025 "liquid chrome" WebGL skin
-(same menu, new dressing), and **`V`** for an opt-in webcam effect — ASCII in retro,
-a refracted "liquid mirror" in modern. Both are raw inline WebGL, no libraries.
+Press **`T`** to flip between the 1989 BBS and a 2025 "liquid chrome" WebGL skin —
+the *same* career, rendered as a bulletin-board file listing or a sleek timeline (the
+1989↔2025 toggle mirrors the actual arc), and **`V`** for an opt-in webcam effect —
+ASCII in retro, a refracted "liquid mirror" in modern. Both are raw inline WebGL.
 
 Press **`H`** for an opt-in **gesture mode**: it lazy-loads webcam hand tracking
 (MediaPipe, from a CDN) so you can drive the page from across the room — your

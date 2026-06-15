@@ -2,9 +2,10 @@
 
 Working notes and design rationale, written so a future session (Claude Code or
 otherwise) can continue without re-deriving the thinking. Last updated: 2026-06-15
-— added the opt-in **GESTURE layer** (webcam hand tracking: cursor + pinch-to-
-navigate + hands push the liquid chrome — see §4c). Earlier: the Door's layer 3,
-the GitHub Pages deploy, the OG preview card, and the retro/modern FX layer (§4b).
+— the **CV redesign** (§4d): the career timeline is now the spine, one DOM rendered
+in both eras, content lives in a `CV` data object. Same day: the opt-in **GESTURE
+layer** (§4c). Earlier: the Door's layer 3, the Pages deploy, the OG card, the
+retro/modern FX layer (§4b).
 
 **Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/ (public project repo,
 served at the `/caviglia-bbs/` subpath — not a user-site, so URLs carry the path).
@@ -60,33 +61,40 @@ command line.
 Everything is in `index.html`: HTML shell + `<style>` + one `<script>`.
 
 - A tiny **state machine** drives it: `mode` ∈
-  `boot | menu | pager | door | denied | granted | bye`.
-- Screens are functions that `clear()` then `add()` lines (BBS-style full redraws).
-- `boot()` types the dial-up connect sequence, draws the logo, then `drawMenu()`.
-  The `ATDT` line dials Pablo's **real** mobile (a `tel:` link, tappable to call) —
-  intentional, not a placeholder. The number is assembled from `PHONE_PARTS` at
-  runtime (mild anti-scrape); Pablo accepted the public-exposure tradeoff. Don't
-  revert it to a fake 555 number.
-- **Menu** rows are both keyboard (single-key hotkeys A/W/C/G/Q) **and** clickable
-  (so phones work without a keyboard). This dual input is important — don't break
-  it.
+  `boot | home | projects | contact | door | denied | granted | bye`.
+  (Was `menu | pager` before the 2026-06-15 CV redesign — see §4d.)
+- Screens are functions that `clear()` then `add()`/append lines (BBS-style full redraws).
+- `boot()` types the dial-up connect sequence, draws the logo, then `goHome(true)`,
+  which renders the career timeline and **settles into the modern skin** (a one-time
+  `FX.switchEra`). The `ATDT` line dials Pablo's **real** mobile (a `tel:` link,
+  tappable to call) — intentional, not a placeholder. The number is assembled from
+  `PHONE_PARTS` at runtime (mild anti-scrape); Pablo accepted the public-exposure
+  tradeoff. Don't revert it to a fake 555 number.
+- **Navigation** is a persistent nav strip (career / projects / contact / the door /
+  log off) — single-key hotkeys **P/C/G/Q** (+ `Esc` → home) **and** clickable/tappable.
+  Career (the timeline) is home. This dual input is important — don't break it.
 - **Door** uses a transparent `<input id="capture">` overlaid under a visible
   `typed` span + block cursor. The input is what raises the mobile keyboard and
   what fixes the "cursor stuck on the right" bug from an earlier version. Keep this
   pattern if you touch the input.
-- Content (bio, work, links) lives inline in the screen functions. LinkedIn and
-  Bitbucket URLs are constants near the top of the script.
+- Content lives in a single **`CV` data object** near the top of the script
+  (tagline/about/arc/ethos + the timeline + projects). LinkedIn/Bitbucket URLs are
+  constants. Edit `CV` to change what the page says — the render functions are generic.
+- **One interaction contract — `act(node, fn)`.** Anything actionable (nav items,
+  timeline entries, project cards, the door's back line, the redial) gets class
+  `.act`, `tabindex`, click + Enter/Space, and `e.stopPropagation()`. The gesture
+  layer (§4c) hit-tests `.act`, so new interactive elements become keyboard- **and**
+  gesture-operable for free. Use `act()` for anything clickable; don't hand-roll.
 - **Event invariant (important — was a real bug).** Two *global* listeners drive
-  "press any key / tap anywhere to advance": `document` keydown and `screenEl`
-  click. They read the *current* `mode`. So any inner handler that **changes the
-  mode** in response to a key/click (the door's Enter→granted/denied, the door's
-  `q`/`Escape`→menu, a menu row's Enter/Space/click) **must call
-  `e.stopPropagation()`** — otherwise the same event keeps bubbling, the global
-  handler sees the *new* mode, and immediately advances again (e.g. ACCESS GRANTED
-  rendered then instantly bounced back to the menu). Every such transition source
-  now stops propagation; keep that if you add screens or controls. The global
-  keydown handler also early-returns on Tab and Cmd/Ctrl/Alt chords so Tab can
-  reach the LinkedIn link on the granted screen and Cmd+C can copy it.
+  "press a key / tap to advance": `document` keydown and `screenEl` click. They read
+  the *current* `mode`. So any inner handler that **changes the mode** in response to
+  a key/click (the door's Enter→granted/denied, the door's `q`/`Escape`→home, any
+  `act()` activation) **must `e.stopPropagation()`** — otherwise the event keeps
+  bubbling, the global handler sees the *new* mode, and advances again (e.g. ACCESS
+  GRANTED rendered then instantly bounced away). `act()` stops propagation for you;
+  the `screenEl` click handler also early-returns on `.act`/`a`. The global keydown
+  early-returns on `#capture`, Tab, and Cmd/Ctrl/Alt chords (so Tab reaches the
+  granted-screen link and Cmd+C copies). Keep all of this if you add screens.
 
 ## 4b. The FX layer — era skin + camera (the `FX` module)
 
@@ -167,6 +175,32 @@ camera (§8): never auto-prompted, torn down on toggle-off, everything stays loc
   is 100% in-page (WASM/WebGL). The only network traffic is the two static CDN
   downloads (runtime + model), and only after you opt in.
 
+## 4d. The career layer — the CV is the spine (2026-06-15 redesign)
+
+The page had drifted into a Frankenstein: the *tech* (era skin, webcam, gestures, the
+Door) was the most developed part and the *career* was three thin screens — backwards
+for what this site is, which is **Pablo's CV**. This pass made the career the spine and
+turned the cool tech into ways to *experience* it.
+
+- **Home is the career.** Boot (retro dial-up) → `goHome(true)` → settles into the 2025
+  skin and lands on a scannable **career timeline**. `T` still flips to pure 1989 BBS;
+  the 1989↔2025 toggle now frames the actual arc (BBS-era Uruguay → 20 yrs J2EE →
+  Android/KMP → embedded + autonomous vehicles).
+- **One timeline, two skins.** `CV.timeline` renders to identical `.tlentry` DOM
+  (period · company · title · headline, expand for detail + tech chips). CSS does the
+  rest: **modern** = cards on a node rail (featured roles get an accent node); **retro**
+  = a BBS file-listing (cyan period, `[+]/[-]`, box rail). Same for `CV.projects`
+  (`scrProjects`) and contact (`scrContact`). This *is* the "one design system, two
+  expressions" fix for the disconnected feel.
+- **Content is data, not markup.** Everything the page says lives in the `CV` object
+  (`tagline`, `about`, `arc`, `ethos[]`, `timeline[]`, `projects[]`), curated from
+  Pablo's real LinkedIn in his dry voice. To update the CV, edit `CV` — never the
+  render functions. Featured vs compact roles are `tier` on each entry.
+- **Gestures weave in for free** because the timeline/nav are `.act` (see §4 — `act()`):
+  point + pinch expands a role or jumps a section, no gesture-specific wiring.
+- The **Door** (§5), `tel:` line, and the whole opt-in tech stack are unchanged — the
+  Door is still the engineer's reward, reached via `[G]`.
+
 ## 5. The Door puzzle (current state)
 
 A real, working **three-layer** puzzle. Layers 1–2 live in the page UI; layer 3
@@ -208,13 +242,13 @@ Pablo's stated ethos — plus a "say 'node 1' when you message me" handshake).
 
 ## 6. Status
 
-**Done:** boot sequence, ANSI logo, menu (hotkey + tap), about/work/contact
-screens, the Door (3-layer puzzle + granted/denied + console shell), logoff/redial,
-reduced-motion + mobile support, Open Graph tags for the LinkedIn preview card,
-the real-mobile `tel:` dial line, the **FX layer** (retro/modern era skin via
-WebGL + opt-in ASCII/liquid-mirror webcam — see §4b), perf-hardened, and the
-**GESTURE layer** (opt-in MediaPipe hand tracking: index-finger cursor +
-pinch-to-navigate + hands that push the liquid chrome — see §4c).
+**Done:** boot sequence, ANSI logo, the **career layer** (§4d — boot→modern home,
+a 12-role timeline + projects + contact rendered one-DOM/two-skins from the `CV`
+object, persistent P/C/G/Q nav), the Door (3-layer puzzle + granted/denied + console
+shell), logoff/redial, reduced-motion + mobile support, Open Graph tags, the
+real-mobile `tel:` dial line, the **FX layer** (retro/modern era skin + opt-in
+ASCII/liquid-mirror webcam — §4b, perf-hardened), and the **GESTURE layer** (opt-in
+MediaPipe hand tracking: cursor + pinch-to-navigate + hands push the liquid — §4c).
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
