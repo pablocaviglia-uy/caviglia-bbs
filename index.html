@@ -151,8 +151,14 @@
             mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px))}
   #gcursor.dwelling .prog{opacity:1}
   #gcursor.fire .ring{transform:scale(1.35);border-color:#fff;box-shadow:0 0 34px rgba(255,255,255,.95),inset 0 0 18px rgba(170,159,255,.7)}
-  #gcursor.grab .ring{transform:scale(.6);background:rgba(170,159,255,.4);border-color:#fff;box-shadow:0 0 26px rgba(124,108,255,.85),inset 0 0 14px rgba(124,108,255,.6)}
-  #gcursor.grab .prog{opacity:0}
+  /* hover scroll arrows (gesture mode, only when content scrolls): rest the ring on one to scroll */
+  .gscrollbar{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:23;display:none;
+    flex-direction:column;gap:12px;font-family:"Space Grotesk",system-ui,sans-serif}
+  body.gesture .gscrollbar.on{display:flex}
+  .gscroll{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;color:#cdd3e3;background:rgba(20,22,30,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.16);transition:background .12s,border-color .12s,transform .12s}
+  .gscroll.active{background:rgba(124,108,255,.34);border-color:rgba(124,108,255,.7);color:#fff;transform:scale(1.08)}
   /* dwell fill: grows across the target being held ("the button fills") */
   #dwellfill{position:fixed;left:0;top:0;z-index:22;pointer-events:none;overflow:hidden;opacity:0;
     transition:opacity .12s ease;box-shadow:0 0 0 1.6px rgba(124,108,255,.7)}
@@ -300,7 +306,7 @@
   <div id="srlive" class="sr-only" aria-live="polite" role="status"></div>
 
   <div class="hud">
-    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" aria-checked="false" tabindex="0" title="Switch era — 1989 BBS / 2025 liquid chrome (key: T)">
+    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 BBS / modern)" aria-checked="false" tabindex="0" title="Switch era — 1989 BBS / modern liquid chrome (key: T)">
       <span class="e-r">1989</span><span class="e-m">2025</span>
     </div>
     <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" aria-checked="false" tabindex="0" title="Webcam effect — opt-in: ASCII in retro, liquid mirror in modern (key: V)">
@@ -317,9 +323,15 @@
     <div class="gl-title">gesture mode · live</div>
     <div class="gl-row"><span class="gl-k">point</span>move the ring</div>
     <div class="gl-row"><span class="gl-k">hold</span>over a button to click</div>
-    <div class="gl-row"><span class="gl-k">fist</span>grab + drag to scroll</div>
+    <div class="gl-row"><span class="gl-k">▲ ▼</span>rest on them to scroll</div>
     <div class="gl-row"><span class="gl-k">move</span>hands push the liquid</div>
     <div class="gl-row gl-exit"><span class="gl-k">H</span>exit gesture mode</div>
+  </div>
+
+  <!-- hover scroll arrows: only shown in gesture mode when there's content to scroll -->
+  <div class="gscrollbar" id="gscrollbar" aria-hidden="true">
+    <div class="gscroll" data-dir="up">▲</div>
+    <div class="gscroll" data-dir="down">▼</div>
   </div>
 
 <script>
@@ -976,6 +988,7 @@ async function toggleCam(){ await FX.toggleCam(); if(!FX.camActive() && GESTURE.
 function toggleGesture(){ GESTURE.toggle(); }
 
 const eraBtn=document.getElementById('eraBtn'), camBtn=document.getElementById('camBtn'), gestBtn=document.getElementById('gestBtn');
+try{ eraBtn.querySelector('.e-m').textContent=String(new Date().getFullYear()); }catch(e){}   // "modern" era pill = the current year, never stale
 eraBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleEra(); });
 eraBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleEra(); } });
 camBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleCam(); });
@@ -987,8 +1000,9 @@ gestBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.prev
    GESTURE LAYER — opt-in hand tracking (MediaPipe Tasks Vision),
    lazy-loaded from a CDN ONLY when the visitor opts in. Point a hand to move a
    cursor; HOLD it over a control for ~1s to "click" (dwell — more reliable than
-   pinch); make a FIST to grab and drag-scroll the content; in the modern era your
-   hand(s) push and ripple the liquid chrome in real time (landmarks -> shader).
+   pinch); rest it on the on-screen ▲/▼ arrows to scroll (position only — no pose
+   detection, which is what made fist/pinch flaky); in the modern era your hand(s)
+   push and ripple the liquid chrome in real time (landmarks -> shader).
    Reuses the single webcam stream the FX module already owns — it
    never opens a second camera. Inference is 100% local (WASM/WebGL);
    no video or landmark data ever leaves the browser.
@@ -1004,22 +1018,17 @@ const GESTURE = (function(){
   const INFER_MS  = coarse ? 55 : 33;                                          // ~18fps mobile / ~30fps desktop
   const CURSOR_LERP = 0.4;
   const DWELL_MS = 1000, DWELL_GRACE = 220;                                     // hold this long over a target to "click"; tolerate brief tracking blips
-  const DRAG_GAIN = 2.5;                                                        // fist-drag: hand-travel px -> scroll px
+  const SCROLL_MIN = 8, SCROLL_MAX = 32;                                        // hover-scroll speed ramp (px per frame), accelerates the longer you rest on an arrow
 
   let desired=false, active=false, loading=false, gen=0, landmarker=null, loadPromise=null, rafId=null;
   let lastInfer=0, lastVideoTime=-1, ownsCam=false;
-  let cursor=null, dwellFill=null, hover=null;
+  let cursor=null, dwellFill=null, hover=null, scrollbar=null;
   let cx=0, cy=0, haveCursor=false;
   let dwellEl=null, dwellStart=0, dwellFired=false, lostAt=0;                   // dwell-to-click: which target, since when, did it fire, when did the cursor slip off
-  let grabbing=false, grabAnchorY=0, grabHyS=0, grabScroll=0;                   // fist-grab drag-to-scroll: anchor hand-Y + scrollTop at grab start
+  let scrollHeld=0;                                                            // frames the cursor has rested on a scroll arrow (drives the speed ramp)
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
-  // how many fingers are extended (tip farther from the wrist than its PIP joint) — 0-1 = fist/grab, >=3 = open
-  function extendedCount(lm){ const w=lm[0]; let n=0;
-    const P=[[8,6],[12,10],[16,14],[20,18]];
-    for(let k=0;k<4;k++){ if(dist(lm[P[k][0]],w) > dist(lm[P[k][1]],w)*1.05) n++; }
-    return n; }
 
   // ---- on-screen hand cursor + dwell-fill overlay ----
   function ensureCursor(){
@@ -1068,16 +1077,31 @@ const GESTURE = (function(){
     return {nx,ny};
   }
 
-  // ---- gesture -> page (dwell-to-click) ----
+  // ---- gesture -> page ----
   const ACTIONABLE='.act,a,[role="switch"]';
-  // highlight what's under the cursor and return the actionable target (or null)
-  function hoverTarget(x,y){
+  function setActiveZone(z){ if(!scrollbar) return; scrollbar.querySelectorAll('.gscroll').forEach(a=>a.classList.toggle('active', a===z)); }
+  // route the cursor each frame: rest on a ▲/▼ arrow -> scroll; hold over a control -> dwell-click
+  function routeCursor(x,y,now){
+    if(!scrollbar) scrollbar=document.getElementById('gscrollbar');
+    const maxScroll=Math.max(0, screenEl.scrollHeight-screenEl.clientHeight);
+    if(scrollbar) scrollbar.classList.toggle('on', maxScroll>4);   // show the arrows (before hit-testing them) only when there's somewhere to scroll
     const el=document.elementFromPoint(x,y);
+    const zone=(el&&el.closest)? el.closest('.gscroll') : null;
+    if(zone && maxScroll>4){                                       // hover-scroll: position only, no pose needed
+      clearHover(); clearDwell(); setActiveZone(zone);
+      scrollHeld++;
+      const sp=Math.min(SCROLL_MIN+scrollHeld*1.3, SCROLL_MAX);    // accelerate the longer you rest on it
+      screenEl.scrollTop=clamp(screenEl.scrollTop + (zone.dataset.dir==='up'?-sp:sp), 0, maxScroll);
+      if(cursor) cursor.classList.add('over');
+      return;
+    }
+    scrollHeld=0; setActiveZone(null);
+    // highlight what's under the cursor + dwell on the actionable target
     const hov=(el&&el.closest)? el.closest('.act,a') : null;
     if(hov!==hover){ if(hover) hover.classList.remove('ghover'); hover=hov||null; if(hover) hover.classList.add('ghover'); }
     const tgt=(el&&el.closest)? el.closest(ACTIONABLE) : null;
     if(cursor) cursor.classList.toggle('over', !!tgt);
-    return tgt;
+    dwell(tgt, now);
   }
   // hold the cursor over a target for DWELL_MS -> click it. Grace tolerates brief tracking blips;
   // after a click you must leave the target and return to fire it again (no machine-gun repeats).
@@ -1098,8 +1122,8 @@ const GESTURE = (function(){
   function processResults(res, now){
     const hands=(res&&res.landmarks)? res.landmarks : [];
     if(!hands.length){
-      showCursor(false); clearHover(); clearDwell(); FX.setHands([]);
-      haveCursor=false; grabbing=false; if(cursor) cursor.classList.remove('grab'); return;
+      showCursor(false); clearHover(); clearDwell(); setActiveZone(null); scrollHeld=0; FX.setHands([]);
+      haveCursor=false; return;
     }
     // every detected hand pushes the liquid (palm = middle-finger MCP; pin = how closed the hand is)
     const shHands=[];
@@ -1110,26 +1134,13 @@ const GESTURE = (function(){
       shHands.push({ ux:(pN.nx-0.5)*(innerWidth/innerHeight), uy:0.5-pN.ny, pinch:pin });
     }
     FX.setHands(shHands);
-    // first hand: open/pointing -> cursor + dwell-click; fist -> grab & drag to scroll the content
+    // first hand's index fingertip drives the cursor (smoothed); routeCursor handles scroll vs dwell
     const p=hands[0];
-    const ext=extendedCount(p);
-    const palmN=toScreenN(p[9].x, p[9].y), palmY=palmN.ny*innerHeight;
-    const maxScroll=Math.max(0, screenEl.scrollHeight-screenEl.clientHeight);
-    if(!grabbing){ if(ext<=1 && maxScroll>4){ grabbing=true; grabAnchorY=palmY; grabHyS=palmY; grabScroll=screenEl.scrollTop; clearHover(); clearDwell(); } } // closed hand over scrollable content -> grab
-    else if(ext>=3){ grabbing=false; }                                          // hand opened -> release
-    let tx,ty;
-    if(grabbing){
-      grabHyS += (palmY-grabHyS)*0.5;                                            // light smoothing kills shake
-      screenEl.scrollTop = clamp(grabScroll - (grabHyS-grabAnchorY)*DRAG_GAIN, 0, maxScroll);  // content follows the hand
-      tx=clamp(palmN.nx*innerWidth,0,innerWidth); ty=clamp(palmY,0,innerHeight);
-    } else {
-      const iN=toScreenN(p[8].x, p[8].y);                                        // index fingertip drives the cursor
-      tx=clamp(iN.nx*innerWidth,0,innerWidth); ty=clamp(iN.ny*innerHeight,0,innerHeight);
-    }
+    const iN=toScreenN(p[8].x, p[8].y);
+    const tx=clamp(iN.nx*innerWidth,0,innerWidth), ty=clamp(iN.ny*innerHeight,0,innerHeight);
     if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
     moveCursor(cx,cy); showCursor(true);
-    if(cursor) cursor.classList.toggle('grab', grabbing);
-    if(grabbing || ext<=1) clearDwell(); else dwell(hoverTarget(cx,cy), now);    // never dwell-click with a closed hand
+    routeCursor(cx,cy,now);
   }
 
   function loop(now){
@@ -1183,7 +1194,7 @@ const GESTURE = (function(){
       document.body.classList.remove('gesture-load'); gestBtn.removeAttribute('aria-busy');
       active=true; ensureCursor(); reflectSwitches();
       lastInfer=0; lastVideoTime=-1; haveCursor=false; clearDwell();
-      flash('point to move · hold to click · make a fist to drag-scroll');
+      flash('point to move · hold to click · rest on the ▲▼ to scroll');
       if(rafId) cancelAnimationFrame(rafId);                                   // never double-schedule the loop
       rafId=requestAnimationFrame(loop);
     } finally { loading=false; }
@@ -1192,7 +1203,7 @@ const GESTURE = (function(){
     const wasOn=active||desired;
     desired=false; active=false; gen++;                                         // bump epoch -> supersede any in-flight enable()
     if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-    clearHover(); showCursor(false); clearDwell(); grabbing=false; if(cursor) cursor.classList.remove('grab');
+    clearHover(); showCursor(false); clearDwell(); setActiveZone(null); scrollHeld=0; if(scrollbar) scrollbar.classList.remove('on');
     if(FX.hasGL()) FX.setHands([]);
     if(landmarker){ try{ landmarker.close(); }catch(e){} landmarker=null; }      // tear the model down (frees WASM + GPU)
     if(ownsCam) FX.stopCam();                                                    // stop the cam we started (null-safe; aborts an in-flight acquisition via stopReq)

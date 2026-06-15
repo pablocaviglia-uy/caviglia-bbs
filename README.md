@@ -27,9 +27,9 @@ ASCII in retro, a refracted "liquid mirror" in modern. Both are raw inline WebGL
 Press **`H`** for an opt-in **gesture mode**: it lazy-loads webcam hand tracking
 (MediaPipe, from a CDN) so you can drive the page from across the room — your
 fingertip moves a cursor, **holding** over a control clicks it (dwell — a ring fills,
-then it fires; no fiddly pinch), **making a fist** grabs and drags the page to scroll,
-and in the modern era your hands push and ripple the liquid chrome in real time.
-Strictly opt-in, torn down when off, all inference local — nothing leaves the browser.
+then it fires; no fiddly pinch), **resting on the on-screen ▲/▼ arrows** scrolls, and
+in the modern era your hands push and ripple the liquid chrome in real time. Strictly
+opt-in, torn down when off, all inference local — nothing leaves the browser.
 
 See `docs/PROJECT.md` for the full design rationale, the puzzle mechanics, and the
 roadmap — that doc is written to let a fresh Claude Code session pick up where

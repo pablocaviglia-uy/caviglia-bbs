@@ -142,12 +142,13 @@ camera (§8): never auto-prompted, torn down on toggle-off, everything stays loc
   (drift, threshold tuning); **dwell only needs cursor position, which is solid**, and
   it's the proven accessibility pattern. A ~220ms grace tolerates tracking blips, and
   you must leave a target and return to click it again (no machine-gun repeats).
-- **Make a fist to grab + drag-scroll.** Dwell alone can't move a long page, so a
-  closed hand (`extendedCount(lm) <= 1`, with hysteresis: open at `>=3`) grabs the
-  content and your hand drags it (content follows the hand; `DRAG_GAIN` px-per-px,
-  lightly smoothed, clamped to bounds). The cursor shows a distinct "grab" state and
-  dwell is suspended while grabbing. This is what makes the timeline actually
-  reachable hands-free. In the
+- **Hover the ▲/▼ arrows to scroll.** Dwell alone can't move a long page, so gesture
+  mode shows two on-screen scroll arrows (right edge, only when content overflows);
+  resting the cursor on one scrolls continuously, accelerating the longer you hold
+  (`SCROLL_MIN`→`SCROLL_MAX`). This is **position-only — no pose detection**, which is
+  the whole point: fist/pinch leaned on landmark *shape*, which is the flaky part;
+  cursor position is solid, so this just works. (An earlier fist-to-drag-scroll was
+  tried and dropped — too unreliable in practice.) In the
   **modern** era your hand(s) still **push and ripple the liquid-chrome shader** —
   landmarks feed `uHand[2]` / `uHandOn[2]` / `uPinch[2]`; the chrome parts around your
   palm and *closing* your hand intensifies the push (the one thing pinch still does).
@@ -258,8 +259,9 @@ object, persistent P/C/G/Q nav), the Door (3-layer puzzle + granted/denied + con
 shell), logoff/redial, reduced-motion + mobile support, Open Graph tags, the
 real-mobile `tel:` dial line, the **FX layer** (retro/modern era skin + opt-in
 ASCII/liquid-mirror webcam — §4b, perf-hardened), and the **GESTURE layer** (opt-in
-MediaPipe hand tracking: cursor + dwell-to-click + fist-drag-to-scroll + hands push
-the liquid — §4c).
+MediaPipe hand tracking: cursor + dwell-to-click + hover-arrow scroll + hands push
+the liquid — §4c). The era pill's modern label is the current year (`new Date()`),
+not a hardcoded "2025".
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
