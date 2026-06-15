@@ -143,8 +143,20 @@
     transition:transform .09s ease,border-color .09s ease,box-shadow .09s ease}
   #gcursor .ring::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;
     border-radius:50%;background:#fff;box-shadow:0 0 6px #fff}
-  #gcursor.pinch .ring{transform:scale(.5);border-color:#fff;box-shadow:0 0 30px rgba(255,255,255,.85),inset 0 0 16px rgba(170,159,255,.6)}
   #gcursor.over .ring{border-color:#fff;box-shadow:0 0 24px rgba(255,255,255,.8),inset 0 0 13px rgba(170,159,255,.5)}
+  /* dwell progress: a conic ring that fills clockwise as you hold (--p 0..1) */
+  #gcursor .prog{position:absolute;inset:-4px;border-radius:50%;opacity:0;transition:opacity .12s ease;
+    background:conic-gradient(#fff calc(var(--p,0)*360deg), rgba(255,255,255,.12) 0);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));
+            mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px))}
+  #gcursor.dwelling .prog{opacity:1}
+  #gcursor.fire .ring{transform:scale(1.35);border-color:#fff;box-shadow:0 0 34px rgba(255,255,255,.95),inset 0 0 18px rgba(170,159,255,.7)}
+  /* dwell fill: grows across the target being held ("the button fills") */
+  #dwellfill{position:fixed;left:0;top:0;z-index:22;pointer-events:none;overflow:hidden;opacity:0;
+    transition:opacity .12s ease;box-shadow:0 0 0 1.6px rgba(124,108,255,.7)}
+  #dwellfill.on{opacity:1}
+  #dwellfill .bar{position:absolute;inset:0;transform-origin:left center;transform:scaleX(var(--p,0));
+    background:linear-gradient(90deg,rgba(124,108,255,.28),rgba(170,159,255,.5))}
   a.ghover{color:#fff;background:rgba(120,220,255,.14);border-radius:3px}
   body.modern a.ghover{color:#fff;background:rgba(124,108,255,.2)}
   /* gesture legend — persistent "what do the gestures do" guide while gesture mode is live */
@@ -292,7 +304,7 @@
     <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" aria-checked="false" tabindex="0" title="Webcam effect — opt-in: ASCII in retro, liquid mirror in modern (key: V)">
       <span class="dot"></span><span>cam</span>
     </div>
-    <div class="camb" id="gestBtn" role="switch" aria-label="toggle gesture control with your hands" aria-checked="false" tabindex="0" title="Hand gestures — opt-in: point to move, pinch to click (key: H)">
+    <div class="camb" id="gestBtn" role="switch" aria-label="toggle gesture control with your hands" aria-checked="false" tabindex="0" title="Hand gestures — opt-in: point to move, hold over a button to click (key: H)">
       <span class="dot"></span><span>hands</span>
     </div>
     <div class="tip">press <b>T</b> era · <b>V</b> cam · <b>H</b> hands</div>
@@ -302,7 +314,7 @@
   <div class="glegend" aria-hidden="true">
     <div class="gl-title">gesture mode · live</div>
     <div class="gl-row"><span class="gl-k">point</span>move the ring</div>
-    <div class="gl-row"><span class="gl-k">pinch</span>thumb + index = click</div>
+    <div class="gl-row"><span class="gl-k">hold</span>over a button to click</div>
     <div class="gl-row"><span class="gl-k">move</span>hands push the liquid</div>
     <div class="gl-row gl-exit"><span class="gl-k">H</span>exit gesture mode</div>
   </div>
@@ -971,9 +983,9 @@ gestBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.prev
 /* ============================================================
    GESTURE LAYER — opt-in hand tracking (MediaPipe Tasks Vision),
    lazy-loaded from a CDN ONLY when the visitor opts in. Point a
-   hand at the screen to move a cursor; pinch thumb+index to "click"
-   menu rows / controls; in the modern era your hand(s) push and
-   ripple the liquid chrome in real time (landmarks -> shader).
+   hand at the screen to move a cursor; HOLD it over a control for ~1s
+   to "click" (dwell — more reliable than pinch); in the modern era your
+   hand(s) push and ripple the liquid chrome in real time (landmarks -> shader).
    Reuses the single webcam stream the FX module already owns — it
    never opens a second camera. Inference is 100% local (WASM/WebGL);
    no video or landmark data ever leaves the browser.
@@ -987,29 +999,54 @@ const GESTURE = (function(){
   const coarse    = matchMedia('(pointer:coarse)').matches;
   const NUM_HANDS = coarse ? 1 : 2;                                             // 2 hands push the liquid on desktop
   const INFER_MS  = coarse ? 55 : 33;                                          // ~18fps mobile / ~30fps desktop
-  const PINCH_ON  = 0.34, PINCH_OFF = 0.50, OPEN_AT = 0.6;                     // hysteresis + a "clearly open / pointing" gate
-  const CURSOR_LERP = 0.4, RATIO_EMA = 0.5;
+  const CURSOR_LERP = 0.4;
+  const DWELL_MS = 1000, DWELL_GRACE = 220;                                     // hold this long over a target to "click"; tolerate brief tracking blips
 
   let desired=false, active=false, loading=false, gen=0, landmarker=null, loadPromise=null, rafId=null;
   let lastInfer=0, lastVideoTime=-1, ownsCam=false;
-  let cursor=null, hover=null;
-  let cx=0, cy=0, haveCursor=false, pinching=false, ratioS=1, lastFire=0;
-  let openX=0, openY=0, haveOpen=false;                                        // last pointing spot while the hand was open — a pinch clicks HERE, not at the drifted fingertip
+  let cursor=null, dwellFill=null, hover=null;
+  let cx=0, cy=0, haveCursor=false;
+  let dwellEl=null, dwellStart=0, dwellFired=false, lostAt=0;                   // dwell-to-click: which target, since when, did it fire, when did the cursor slip off
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 
-  // ---- on-screen hand cursor ----
+  // ---- on-screen hand cursor + dwell-fill overlay ----
   function ensureCursor(){
     if(cursor) return;
     cursor=document.createElement('div'); cursor.id='gcursor'; cursor.setAttribute('aria-hidden','true');
-    const ring=document.createElement('div'); ring.className='ring'; cursor.appendChild(ring);
+    cursor.innerHTML='<div class="prog"></div><div class="ring"></div>';   // .prog = the dwell progress ring
     document.body.appendChild(cursor);
+    dwellFill=document.createElement('div'); dwellFill.id='dwellfill'; dwellFill.setAttribute('aria-hidden','true');
+    dwellFill.innerHTML='<div class="bar"></div>'; document.body.appendChild(dwellFill);
   }
   function moveCursor(x,y){ if(cursor) cursor.style.transform='translate('+(x-27)+'px,'+(y-27)+'px)'; }
   function showCursor(v){ if(cursor) cursor.classList.toggle('on', v); }
-  function setPinchVisual(v){ if(cursor) cursor.classList.toggle('pinch', v); }
   function clearHover(){ if(hover){ hover.classList.remove('ghover'); hover=null; } if(cursor) cursor.classList.remove('over'); }
+  // dwell visuals: a conic ring on the cursor + a fill that grows across the target ("the button fills")
+  function setDwellProgress(p){
+    if(cursor){ cursor.style.setProperty('--p',p); cursor.classList.toggle('dwelling', p>0.001); }
+    if(dwellFill) dwellFill.style.setProperty('--p',p);
+  }
+  function positionDwellFill(elm){
+    if(!dwellFill) return;
+    const r=elm.getBoundingClientRect();
+    dwellFill.style.left=r.left+'px'; dwellFill.style.top=r.top+'px';
+    dwellFill.style.width=r.width+'px'; dwellFill.style.height=r.height+'px';
+    dwellFill.style.borderRadius=getComputedStyle(elm).borderRadius;
+    dwellFill.classList.add('on');
+  }
+  function clearDwell(){
+    dwellEl=null; dwellFired=false; lostAt=0;
+    if(cursor){ cursor.classList.remove('dwelling'); cursor.style.setProperty('--p',0); }
+    if(dwellFill) dwellFill.classList.remove('on');
+  }
+  function fireDwell(elm){
+    if(cursor){ cursor.classList.add('fire'); setTimeout(()=>cursor&&cursor.classList.remove('fire'),220); }
+    const a=elm.closest? elm.closest('a') : null;
+    if(a&&a.href){ const w=window.open(a.href,'_blank','noopener'); if(!w) flash('hold can\'t open links — tap it'); return; } // rAF stack lacks user-activation; _blank may be blocked
+    elm.click();   // .act items + role=switch run their own handlers (which stopPropagation)
+  }
 
   // ---- raw camera landmark -> screen position (inverts the shader's cover-fit + selfie mirror) ----
   function camAspect(){ const v=FX.getVideo(); return (v&&v.videoWidth&&v.videoHeight)? v.videoWidth/v.videoHeight : 1.3333; }
@@ -1021,32 +1058,40 @@ const GESTURE = (function(){
     return {nx,ny};
   }
 
-  // ---- gesture -> page ----
+  // ---- gesture -> page (dwell-to-click) ----
   const ACTIONABLE='.act,a,[role="switch"]';
-  function updateHover(x,y){
+  // highlight what's under the cursor and return the actionable target (or null)
+  function hoverTarget(x,y){
     const el=document.elementFromPoint(x,y);
-    const tgt=(el&&el.closest)? el.closest('.act,a') : null;                       // highlight actionable items AND links
-    if(tgt!==hover){ if(hover) hover.classList.remove('ghover'); hover=tgt||null; if(hover) hover.classList.add('ghover'); }
-    const onTarget=!!((el&&el.closest&&el.closest(ACTIONABLE)) || mode==='denied'||mode==='granted'||mode==='bye');
-    if(cursor) cursor.classList.toggle('over', onTarget);                          // tint the cursor when a pinch would do something
+    const hov=(el&&el.closest)? el.closest('.act,a') : null;
+    if(hov!==hover){ if(hover) hover.classList.remove('ghover'); hover=hov||null; if(hover) hover.classList.add('ghover'); }
+    const tgt=(el&&el.closest)? el.closest(ACTIONABLE) : null;
+    if(cursor) cursor.classList.toggle('over', !!tgt);
+    return tgt;
   }
-  function firePinch(x,y){
-    const t=performance.now(); if(t-lastFire<350) return; lastFire=t;            // debounce double-fires
-    const el=document.elementFromPoint(x,y);
-    if(el&&el.closest){
-      const a=el.closest('a'); if(a&&a.href){ const w=window.open(a.href,'_blank','noopener'); if(!w) flash('pinch can\'t open links — tap it'); return; } // rAF stack lacks user-activation; may be popup-blocked
-      const ctrl=el.closest('[role="switch"],.act'); if(ctrl){ ctrl.click(); return; }
+  // hold the cursor over a target for DWELL_MS -> click it. Grace tolerates brief tracking blips;
+  // after a click you must leave the target and return to fire it again (no machine-gun repeats).
+  function dwell(tgt, now){
+    if(tgt){
+      lostAt=0;
+      if(tgt!==dwellEl){ dwellEl=tgt; dwellStart=now; dwellFired=false; positionDwellFill(tgt); }
+      if(dwellFired){ setDwellProgress(1); return; }            // already clicked this one — wait until you move off
+      let p=(now-dwellStart)/DWELL_MS; if(p>1) p=1;
+      setDwellProgress(p);
+      if(p>=1){ dwellFired=true; fireDwell(dwellEl); }
+    } else if(dwellEl){
+      if(!lostAt) lostAt=now;
+      if(now-lostAt > DWELL_GRACE) clearDwell();                 // truly left the target
     }
-    if(mode==='denied'||mode==='granted'||mode==='bye') advanceFromInput();
   }
 
   function processResults(res, now){
     const hands=(res&&res.landmarks)? res.landmarks : [];
     if(!hands.length){
-      showCursor(false); setPinchVisual(false); clearHover(); FX.setHands([]);
-      haveCursor=false; pinching=false; haveOpen=false; return;
+      showCursor(false); clearHover(); clearDwell(); FX.setHands([]);
+      haveCursor=false; return;
     }
-    // every detected hand pushes the liquid (palm = middle-finger MCP)
+    // every detected hand pushes the liquid (palm = middle-finger MCP; pin = how closed the hand is)
     const shHands=[];
     for(let h=0; h<hands.length && h<2; h++){
       const lm=hands[h]; if(!lm||lm.length<21) continue;
@@ -1055,25 +1100,13 @@ const GESTURE = (function(){
       shHands.push({ ux:(pN.nx-0.5)*(innerWidth/innerHeight), uy:0.5-pN.ny, pinch:pin });
     }
     FX.setHands(shHands);
-    // first hand's index fingertip drives the cursor
+    // first hand's index fingertip drives the cursor (smoothed); hold over a target to click it
     const p=hands[0];
     const iN=toScreenN(p[8].x, p[8].y);
     const tx=clamp(iN.nx*innerWidth,0,innerWidth), ty=clamp(iN.ny*innerHeight,0,innerHeight);
-    const raw=dist(p[4],p[8])/(dist(p[0],p[9])||1e-4);
-    ratioS+=(raw-ratioS)*RATIO_EMA;                                            // EMA-smoothed pinch ratio
-    if(pinching){
-      // HOLD: keep the ring locked where the click landed — the pinch drags the fingertip, so don't chase it
-      if(ratioS>PINCH_OFF){ pinching=false; setPinchVisual(false); }
-    } else {
-      if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
-      if(ratioS>OPEN_AT){ openX=cx; openY=cy; haveOpen=true; }                  // hand clearly open -> remember the pointing spot
-      if(ratioS<PINCH_ON){                                                      // pinch closed -> click where you were pointing, then freeze
-        pinching=true; setPinchVisual(true);
-        if(haveOpen){ cx=openX; cy=openY; }
-        firePinch(cx,cy);
-      }
-    }
-    moveCursor(cx,cy); showCursor(true); updateHover(cx,cy);
+    if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
+    moveCursor(cx,cy); showCursor(true);
+    dwell(hoverTarget(cx,cy), now);
   }
 
   function loop(now){
@@ -1126,8 +1159,8 @@ const GESTURE = (function(){
       if(FX.hasGL() && !document.body.classList.contains('modern')) FX.switchEra(originFrom(gestBtn)); // ready: reveal the liquid your hands will push
       document.body.classList.remove('gesture-load'); gestBtn.removeAttribute('aria-busy');
       active=true; ensureCursor(); reflectSwitches();
-      lastInfer=0; lastVideoTime=-1; haveCursor=false; pinching=false; ratioS=1;
-      flash('point your hand to move · pinch to click');
+      lastInfer=0; lastVideoTime=-1; haveCursor=false; clearDwell();
+      flash('point your hand to move · hold on a button to click');
       if(rafId) cancelAnimationFrame(rafId);                                   // never double-schedule the loop
       rafId=requestAnimationFrame(loop);
     } finally { loading=false; }
@@ -1136,7 +1169,7 @@ const GESTURE = (function(){
     const wasOn=active||desired;
     desired=false; active=false; gen++;                                         // bump epoch -> supersede any in-flight enable()
     if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-    clearHover(); showCursor(false); setPinchVisual(false);
+    clearHover(); showCursor(false); clearDwell();
     if(FX.hasGL()) FX.setHands([]);
     if(landmarker){ try{ landmarker.close(); }catch(e){} landmarker=null; }      // tear the model down (frees WASM + GPU)
     if(ownsCam) FX.stopCam();                                                    // stop the cam we started (null-safe; aborts an in-flight acquisition via stopReq)

@@ -134,14 +134,18 @@ Reach out and touch the board from across the room. A third HUD pill — **hands
 hotkey **`H`** — turns on webcam **hand tracking**. Same opt-in contract as the
 camera (§8): never auto-prompted, torn down on toggle-off, everything stays local.
 
-- **What it does.** Your index fingertip drives an on-screen **cursor**; a **pinch**
-  (thumb + index) "clicks" whatever it's over — menu rows, the era/cam/hands pills,
-  the Door's back line, or any "press any key to advance" screen. So the whole
-  recruiter path (About / Work / Contact / LinkedIn) becomes usable hands-free,
-  across the room, with no keyboard or touch. In the **modern** era your hand(s)
-  also **push and ripple the liquid-chrome shader** in real time — landmarks feed
-  `uHand[2]` / `uHandOn[2]` / `uPinch[2]`; the chrome parts around your palm and a
-  pinch fires a bright radial burst. Two hands on desktop, one on mobile.
+- **What it does.** Your index fingertip drives an on-screen **cursor**; **dwell**
+  (hold it over a control for ~1s) "clicks" it — a ring fills around the cursor and
+  the target itself fills. Works on everything actionable: nav, timeline entries, the
+  era/cam/hands pills, links, the Door's back line, "advance" screens. We chose dwell
+  over pinch deliberately — pinch leaned on MediaPipe's flaky finger-distance estimate
+  (drift, threshold tuning); **dwell only needs cursor position, which is solid**, and
+  it's the proven accessibility pattern. A ~220ms grace tolerates tracking blips, and
+  you must leave a target and return to click it again (no machine-gun repeats). In the
+  **modern** era your hand(s) still **push and ripple the liquid-chrome shader** —
+  landmarks feed `uHand[2]` / `uHandOn[2]` / `uPinch[2]`; the chrome parts around your
+  palm and *closing* your hand intensifies the push (the one thing pinch still does).
+  Two hands on desktop, one on mobile.
 
 - **Still self-contained.** The base page ships zero tracking code. On opt-in it
   lazy-loads **MediaPipe Tasks Vision (HandLandmarker)** via dynamic `import()` from
@@ -197,7 +201,7 @@ turned the cool tech into ways to *experience* it.
   Pablo's real LinkedIn in his dry voice. To update the CV, edit `CV` — never the
   render functions. Featured vs compact roles are `tier` on each entry.
 - **Gestures weave in for free** because the timeline/nav are `.act` (see §4 — `act()`):
-  point + pinch expands a role or jumps a section, no gesture-specific wiring.
+  point + dwell expands a role or jumps a section, no gesture-specific wiring.
 - The **Door** (§5), `tel:` line, and the whole opt-in tech stack are unchanged — the
   Door is still the engineer's reward, reached via `[G]`.
 
@@ -248,7 +252,7 @@ object, persistent P/C/G/Q nav), the Door (3-layer puzzle + granted/denied + con
 shell), logoff/redial, reduced-motion + mobile support, Open Graph tags, the
 real-mobile `tel:` dial line, the **FX layer** (retro/modern era skin + opt-in
 ASCII/liquid-mirror webcam — §4b, perf-hardened), and the **GESTURE layer** (opt-in
-MediaPipe hand tracking: cursor + pinch-to-navigate + hands push the liquid — §4c).
+MediaPipe hand tracking: cursor + dwell-to-click + hands push the liquid — §4c).
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
