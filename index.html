@@ -181,8 +181,8 @@ function makeEl(html,cls){const d=document.createElement('div');d.className=cls;
 function menuRow(k,label){
   const d=add('<span class="cyan">│</span>  <span class="key">['+k+']</span>  <span class="wht">'+label+'</span>','pick');
   d.tabIndex=0; d.dataset.key=k.toLowerCase();
-  d.addEventListener('click',()=>choose(k.toLowerCase()));
-  d.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(k.toLowerCase());} });
+  d.addEventListener('click',e=>{ e.stopPropagation(); choose(k.toLowerCase()); });
+  d.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); choose(k.toLowerCase()); } });
 }
 
 function pager(){ mode='pager'; add('&nbsp;'); add('<span class="dim">‹ tap anywhere or press any key to return to the menu ›</span>'); }
@@ -244,12 +244,15 @@ function scrDoor(){
   add('&nbsp;');
   const line=add('<span class="mag">ACCESS CODE ›</span> <span class="inp"><span class="field"><span class="typed" id="typed"></span><span class="cur"></span><input id="capture" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="access code"></span></span>');
   add('&nbsp;');
-  add('<span class="dim">[Q] / tap here to slink back to the menu</span>').addEventListener('click',()=>{ if(mode==='door'){drawMenu();} });
+  add('<span class="dim">[Q] / tap here to slink back to the menu</span>').addEventListener('click',e=>{ if(mode==='door'){ e.stopPropagation(); drawMenu(); } });
   const cap=document.getElementById('capture'), typed=document.getElementById('typed');
   cap.addEventListener('input',()=>{ buf=cap.value; typed.textContent=buf; });
   cap.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ submitDoor(); }
-    else if(e.key.toLowerCase()==='q' && buf==='' ){ e.preventDefault(); drawMenu(); }
+    // these keys act here AND change the mode — stop them so the same keystroke
+    // doesn't also bubble to the global "press any key to advance" handler.
+    if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); submitDoor(); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); drawMenu(); }
+    else if(e.key.toLowerCase()==='q' && buf==='' ){ e.preventDefault(); e.stopPropagation(); drawMenu(); }
   });
   setTimeout(()=>cap.focus(),30);
 }
@@ -369,6 +372,10 @@ function scrBye(){
 
 /* ---------- global input ---------- */
 document.addEventListener('keydown', e=>{
+  // don't treat focus/shortcut keys as "advance": let Tab move focus (e.g. to the
+  // LinkedIn link on the granted screen) and let Cmd/Ctrl chords (copy, reload) pass.
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if(['Tab','Shift','Control','Alt','Meta'].includes(e.key)) return;
   if(mode==='menu'){ const k=e.key.toLowerCase(); if('awcgq'.includes(k)) choose(k); }
   else if(mode==='pager'){ drawMenu(); }
   else if(mode==='denied'){ scrDoor(); }

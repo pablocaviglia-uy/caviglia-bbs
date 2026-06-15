@@ -70,6 +70,17 @@ Everything is in `index.html`: HTML shell + `<style>` + one `<script>`.
   pattern if you touch the input.
 - Content (bio, work, links) lives inline in the screen functions. LinkedIn and
   Bitbucket URLs are constants near the top of the script.
+- **Event invariant (important — was a real bug).** Two *global* listeners drive
+  "press any key / tap anywhere to advance": `document` keydown and `screenEl`
+  click. They read the *current* `mode`. So any inner handler that **changes the
+  mode** in response to a key/click (the door's Enter→granted/denied, the door's
+  `q`/`Escape`→menu, a menu row's Enter/Space/click) **must call
+  `e.stopPropagation()`** — otherwise the same event keeps bubbling, the global
+  handler sees the *new* mode, and immediately advances again (e.g. ACCESS GRANTED
+  rendered then instantly bounced back to the menu). Every such transition source
+  now stops propagation; keep that if you add screens or controls. The global
+  keydown handler also early-returns on Tab and Cmd/Ctrl/Alt chords so Tab can
+  reach the LinkedIn link on the granted screen and Cmd+C can copy it.
 
 ## 5. The Door puzzle (current state)
 
@@ -137,9 +148,29 @@ forwards the boot animation so it lands on the menu.
 - **More "rooms"** in the BBS spirit: a guestbook / message board, a "door game"
   (a tiny playable thing — Pablo has built MOT/predator-prey sims and WebXR before
   and could drop a real mini-game behind `[G]`).
-- **Real preview image** for OG so the LinkedIn/Twitter card looks finished.
 - Possibly grow the repo into a broader personal site / projects hub over time —
   this page is just the presentation layer "for now."
+
+**Polish backlog** (found in a 2026-06-14 audit; none are dead ends, all are
+nice-to-haves, listed worst-first):
+- *Mobile door focus:* `#capture` is focused once via `setTimeout`. On phones a
+  tap that misses the (invisible) input can drop focus with no visible "tap to
+  type" affordance and no re-focus handler — the engineer-on-a-phone path can
+  stall on the Door (still escapable via the `[Q]` line, so not a dead end).
+  Fix: a `mode==='door'` click handler that re-`focus()`es `#capture`.
+- *Focus after transitions:* nothing calls `screenEl.focus()` after a redraw, so
+  a keyboard user who entered via tap relies entirely on the global listener
+  (works, but Tab focus is inconsistent). Fix: `screenEl.focus()` at end of redraws.
+- *`type()` interval:* the typewriter `setInterval` has no handle and isn't
+  cancelled on navigation. Harmless today (only used in `boot()` before input is
+  wired), but a latent zombie-interval if `type()` is ever used on a navigable
+  screen. Fix: store + `clearInterval` in `clear()`, or guard on `node.isConnected`.
+- *`scrBye` timing:* the 500ms NO CARRIER delay isn't gated by `reduce`, and the
+  pending timeout isn't cleared if you redial fast — a quick keypress can leave a
+  stray "NO CARRIER" line in the next boot. Fix: gate with `reduce`, store + clear
+  the timeout id.
+- *Caller number:* `1000+random*8999` tops out at 9998 and re-rolls every boot.
+  Cosmetic; persist in `localStorage` for a stable number if desired.
 
 ## 8. Constraints / principles to preserve
 
