@@ -268,15 +268,20 @@ not a hardcoded "2025".
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
-`og:image` point at that subpath; `preview.png` (1200×630, the main menu) is
-committed at the repo root and served alongside `index.html`.
+`og:image` point at that subpath; `preview.png` (1200×630, the **modern career
+home** — name, tagline, about over the liquid chrome) is committed at the repo root
+and served alongside `index.html`. The OG title/description are name-forward for the
+LinkedIn card; `og:image:alt` describes the new home (not the old menu).
 
-**If you regenerate `preview.png`:** it's a headless-Chrome shot of the live menu.
-Serve the folder (`python3 -m http.server PORT`), then:
+**If you regenerate `preview.png`:** it's a headless-Chrome shot of the page after it
+settles into the modern home. Serve the folder (`python3 -m http.server PORT`), then
+(note the **SwiftShader flags** — needed so the WebGL liquid renders headless; without
+them you get a flat dark card):
 `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new
---disable-gpu --hide-scrollbars --window-size=1200,630 --virtual-time-budget=12000
---screenshot=preview.png http://localhost:PORT/`. The virtual-time budget fast-
-forwards the boot animation so it lands on the menu.
+--hide-scrollbars --window-size=1200,630 --virtual-time-budget=11000 --use-gl=angle
+--use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=preview.png
+http://localhost:PORT/`. The budget fast-forwards the boot + era-settle so it lands on
+the modern home. After committing, force a re-scrape via the LinkedIn Post Inspector.
 
 ## 7. Roadmap / ideas for next sessions
 
