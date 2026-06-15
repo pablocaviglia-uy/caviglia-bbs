@@ -9,3 +9,6 @@
 # misc
 *.log
 node_modules/
+
+# scratch / prototypes (the WebGL skin lab; superseded by the integration in index.html)
+lab/

@@ -16,6 +16,10 @@ different visitors at once:
   bio, work focus, and LinkedIn. No puzzle to solve, no dead ends.
 - **Engineers** find an optional **Door** (a real puzzle) that rewards curiosity.
 
+Press **`T`** to flip between the 1989 BBS and a 2025 "liquid chrome" WebGL skin
+(same menu, new dressing), and **`V`** for an opt-in webcam effect — ASCII in retro,
+a refracted "liquid mirror" in modern. Both are raw inline WebGL, no libraries.
+
 See `docs/PROJECT.md` for the full design rationale, the puzzle mechanics, and the
 roadmap — that doc is written to let a fresh Claude Code session pick up where
 this left off.

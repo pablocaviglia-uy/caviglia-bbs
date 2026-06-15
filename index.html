@@ -20,7 +20,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#04040b;
@@ -29,19 +29,27 @@
     --yel:#ffd94a;  --yel-b:#fff0a0;
     --grn:#5cf06f;  --red:#ff5d5d;
     --wht:#e7e7f0;  --dim:#5f6b86;
-    --blu:#6b78d8;
+    --blu:#6b78d8;  --accent:#7c6cff;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
-    margin:0;background:#000;
+    margin:0;background:#000;position:relative;
     display:flex;align-items:center;justify-content:center;
     padding:clamp(6px,2.5vw,34px);
     font-family:"VT323",ui-monospace,"Courier New",monospace;
     overflow:hidden;
   }
+  /* live background: retro phosphor / modern liquid-chrome (WebGL) + ascii camera */
+  #fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+  #ascii{position:fixed;inset:0;z-index:0;margin:0;display:none;pointer-events:none;
+    color:#56e0e0;background:#02040a;overflow:hidden;white-space:pre;
+    font-family:"VT323",ui-monospace,monospace;line-height:.92;letter-spacing:0;
+    text-shadow:0 0 6px rgba(86,224,224,.5);opacity:.85}
+  body.cam.retro #ascii{display:block}
+
   .bbs{
-    position:relative;
+    position:relative;z-index:1;
     width:min(880px,100%);height:min(660px,100%);
     background:
       radial-gradient(130% 130% at 50% 30%, #0a0a18 0%, #05050d 70%, #020205 100%);
@@ -49,16 +57,18 @@
     box-shadow:inset 0 0 100px rgba(0,0,0,.85), 0 0 0 2px #11132a, 0 24px 70px rgba(0,0,0,.7);
     padding:clamp(14px,2.6vw,30px) clamp(16px,2.8vw,32px) 40px;
     overflow:hidden;color:var(--cyan);
+    transition:background .55s ease, box-shadow .55s ease, color .55s ease, border-color .55s ease;
+    border:1px solid transparent;
   }
   .bbs::before{ /* scanlines */
     content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
     background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.22) 3px,rgba(0,0,0,0) 4px);
-    mix-blend-mode:multiply;
+    mix-blend-mode:multiply;transition:opacity .55s ease;
   }
   .bbs::after{ /* vignette */
     content:"";position:absolute;inset:0;z-index:6;pointer-events:none;
     background:radial-gradient(120% 120% at 50% 50%,rgba(0,0,0,0) 58%,rgba(0,0,0,.5) 100%);
-    animation:flick 7s steps(70) infinite;
+    animation:flick 7s steps(70) infinite;transition:opacity .55s ease;
   }
   @keyframes flick{0%,100%{opacity:.93}48%{opacity:.86}49%{opacity:.97}}
 
@@ -85,6 +95,7 @@
   .pick:hover,.pick:focus{background:rgba(120,220,255,.10);outline:none}
   .pick:hover .key,.pick:focus .key{color:#fff}
   .key{color:var(--yel-b);font-weight:400}
+  .brandModern{display:none}
 
   /* input line for the door */
   .inp{position:relative;display:flex;align-items:center;gap:.4ch}
@@ -101,15 +112,67 @@
     font-size:13px;letter-spacing:.03em;
     background:linear-gradient(#0b0d1e,#070812);border-top:1px solid #14182f;
     padding:5px clamp(16px,2.8vw,32px);display:flex;justify-content:space-between;gap:8px;
-    color:var(--dim);
+    color:var(--dim);transition:background .55s ease,border-color .55s ease;
   }
   .status b{color:var(--cyan)}
   @media (max-width:520px){ .status .hideS{display:none} }
 
-  @media (prefers-reduced-motion:reduce){ .bbs::after{animation:none;opacity:.92} .cur{animation:none} }
+  /* ---------- the HUD: era + camera controls (dual input: tap or hotkey) ---------- */
+  .hud{position:fixed;top:14px;right:14px;z-index:20;display:flex;gap:8px;align-items:center;
+    font-family:"Space Grotesk",system-ui,sans-serif}
+  .era{display:flex;gap:3px;padding:3px;border-radius:999px;cursor:pointer;user-select:none;
+    background:rgba(20,22,30,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.14);font-size:12px;color:#9aa3b8}
+  .era span{padding:5px 12px;border-radius:999px;transition:.18s}
+  body.retro .era .e-r{background:#2a3350;color:#bfe9ff}
+  body.modern .era .e-m{background:var(--accent);color:#0b0c10;font-weight:500}
+  .camb{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;cursor:pointer;
+    background:rgba(20,22,30,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.14);color:#9aa3b8;font-size:12px}
+  .camb .dot{width:7px;height:7px;border-radius:50%;background:#5f6b86;transition:.2s}
+  body.cam .camb{color:#eef0f7;border-color:rgba(255,93,93,.5)}
+  body.cam .camb .dot{background:#ff5d5d;box-shadow:0 0 8px #ff5d5d}
+  .hud .tip{position:absolute;top:38px;right:2px;font-size:11px;color:#67708a;white-space:nowrap}
+
+  /* ---------- MODERN era skin (same DOM, new dressing) ---------- */
+  body.modern .bbs{
+    background:rgba(9,11,20,.46);
+    backdrop-filter:blur(17px) saturate(1.25);-webkit-backdrop-filter:blur(17px) saturate(1.25);
+    box-shadow:0 30px 90px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);color:#dfe3ee;
+  }
+  body.modern .bbs::before,body.modern .bbs::after{opacity:0}
+  body.modern .screen{font-family:"Space Grotesk",system-ui,sans-serif;text-shadow:none;
+    font-size:clamp(15px,2.1vw,18px);line-height:1.55}
+  body.modern .deco{display:none}
+  body.modern .cyan,body.modern .cyanb{color:#c8d0e6}
+  body.modern .wht{color:#eef0f7}
+  body.modern .dim{color:#8b93a8}
+  body.modern .yel,body.modern .yelb{color:#b9b1ff}
+  body.modern a{color:#a99fff;text-decoration:none;border-bottom:1px solid rgba(169,159,255,.4)}
+  body.modern a:hover{color:#fff;border-color:#fff}
+  body.modern .hdr .hdrT{font-size:1.18em;font-weight:500;letter-spacing:.06em;color:#fff}
+  body.modern .sepln{display:none}
+  body.modern .pick{display:flex;align-items:center;gap:.7em;border:1px solid rgba(255,255,255,.07);
+    background:rgba(255,255,255,.035);border-radius:12px;padding:11px 14px;margin:7px 0}
+  body.modern .pick:hover,body.modern .pick:focus{background:rgba(124,108,255,.14);border-color:rgba(124,108,255,.4)}
+  body.modern .pick .key{display:inline-flex;align-items:center;justify-content:center;min-width:1.8em;height:1.8em;
+    border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    color:#cdd3e3;font-family:"VT323",monospace;font-size:1.05em}
+  body.modern .brandModern{display:block;margin-bottom:14px}
+  body.modern .brandModern .bm-name{font-size:clamp(22px,3vw,30px);font-weight:500;letter-spacing:.18em;color:#fff}
+  body.modern .brandModern .bm-sub{font-size:13px;color:#8b93a8;letter-spacing:.05em;margin-top:2px}
+  body.modern .logoRetro{display:none}
+  body.modern .status{background:linear-gradient(rgba(20,22,34,.5),rgba(12,14,24,.5));border-top:1px solid rgba(255,255,255,.08)}
+  body.modern .status b{color:#b9b1ff}
+
+  @media (prefers-reduced-motion:reduce){ .bbs::after{animation:none;opacity:.92} .cur{animation:none}
+    .bbs,.status{transition:none} }
 </style>
 </head>
-<body>
+<body class="retro">
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <pre id="ascii" aria-hidden="true"></pre>
   <div class="bbs">
     <div class="screen" id="screen" tabindex="0" aria-label="bbs terminal"></div>
     <div class="status">
@@ -117,6 +180,16 @@
       <span class="hideS">2400 baud · ARQ</span>
       <span>Sysop: Pablo</span>
     </div>
+  </div>
+
+  <div class="hud">
+    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" tabindex="0">
+      <span class="e-r">1989</span><span class="e-m">2025</span>
+    </div>
+    <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" tabindex="0">
+      <span class="dot"></span><span>cam</span>
+    </div>
+    <div class="tip">press <b>T</b> era · <b>V</b> cam</div>
   </div>
 
 <script>
@@ -143,6 +216,9 @@ function type(text, cls){
       if(i>=text.length){clearInterval(t);res();} }, 11);
   });
 }
+// era-aware section header + separator: box-drawing wrapped in .deco so the modern skin drops it
+function hdr(title, c){ c=c||'cyanb'; add('<span class="deco '+c+'">┌─[ </span><span class="hdrT '+c+'">'+title+'</span><span class="deco '+c+'"> ]</span>','hdr'); }
+function sep(c){ add('<span class="deco '+(c||'cyan')+'">│</span>','sepln'); }
 
 const LOGO =
 `<pre><span class="cyanb">░▒▓</span><span class="cyan">████████████████████████████████████████</span><span class="cyanb">▓▒░</span>
@@ -170,23 +246,25 @@ async function boot(){
 
 function drawMenu(first){
   clear(); mode='menu';
-  screenEl.appendChild(makeEl(LOGO,'row'));
+  screenEl.appendChild(makeEl(LOGO,'row logoRetro'));
+  screenEl.appendChild(makeEl('<div class="bm-name">CAVIGLIA</div><div class="bm-sub">node 1 · sysop pablo</div>','row brandModern'));
   add('&nbsp;');
-  add('<span class="cyanb">┌─[ MAIN MENU ]</span>');
-  add('<span class="cyan">│</span>');
+  hdr('MAIN MENU');
+  sep();
   menuRow('A','About the sysop');
   menuRow('W','Work / résumé');
   menuRow('C','Contact &amp; links');
-  menuRow('G','The Door            <span class="dim">‹ sysop\'s game ›</span>');
+  menuRow('G','The Door','<span class="dim">‹ sysop\'s game ›</span>');
   menuRow('Q','Log off');
-  add('<span class="cyan">│</span>');
-  add('<span class="cyanb">└─</span>');
+  sep();
+  add('<span class="deco cyanb">└─</span>','sepln');
   add('&nbsp;');
   add('<span class="dim">Pick a letter — press it, or tap a line. (on a phone, just tap.)</span>');
 }
 function makeEl(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;return d;}
-function menuRow(k,label){
-  const d=add('<span class="cyan">│</span>  <span class="key">['+k+']</span>  <span class="wht">'+label+'</span>','pick');
+function menuRow(k,label,extra){
+  const tail = extra ? '  '+extra : '';
+  const d=add('<span class="deco cyan">│  </span><span class="key"><span class="deco">[</span>'+k+'<span class="deco">]</span></span>  <span class="wht">'+label+'</span>'+tail,'pick');
   d.tabIndex=0; d.dataset.key=k.toLowerCase();
   d.addEventListener('click',e=>{ e.stopPropagation(); choose(k.toLowerCase()); });
   d.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); choose(k.toLowerCase()); } });
@@ -205,7 +283,7 @@ function choose(k){
 
 function scrAbout(){
   clear();
-  add('<span class="cyanb">┌─[ THE SYSOP ]</span>'); add('<span class="cyan">│</span>');
+  hdr('THE SYSOP'); sep();
   add('<span class="wht">Pablo Caviglia — software engineer, 20+ years.</span>');
   add('&nbsp;');
   add('I build Android and Kotlin Multiplatform apps, with a specialty in');
@@ -218,7 +296,7 @@ function scrAbout(){
 }
 function scrWork(){
   clear();
-  add('<span class="cyanb">┌─[ WORK ]</span>'); add('<span class="cyan">│</span>');
+  hdr('WORK'); sep();
   add('<span class="yel">focus</span>');
   add('  <span class="cyan">·</span> Android · Kotlin Multiplatform · Jetpack Compose');
   add('  <span class="cyan">·</span> offline-first architecture &amp; sync');
@@ -231,7 +309,7 @@ function scrWork(){
 }
 function scrContact(){
   clear();
-  add('<span class="cyanb">┌─[ CONTACT ]</span>'); add('<span class="cyan">│</span>');
+  hdr('CONTACT'); sep();
   add('<span class="yel">linkedin</span>  <span class="dim">→</span> <a href="'+LINKEDIN+'" target="_blank" rel="noopener">linkedin.com/in/pablo-caviglia</a>');
   add('<span class="yel">code</span>      <span class="dim">→</span> <a href="'+BITBUCKET+'" target="_blank" rel="noopener">bitbucket.org/pablocaviglia</a>');
   add('&nbsp;');
@@ -243,7 +321,7 @@ function scrContact(){
 let buf='';
 function scrDoor(){
   clear(); mode='door'; buf='';
-  add('<span class="magb">┌─[ THE DOOR ]</span>'); add('<span class="mag">│</span>');
+  hdr('THE DOOR','magb'); sep('mag');
   add('<span class="wht">Not everyone gets in here. That\'s the point.</span>');
   add('&nbsp;');
   add('This board keeps its keys <span class="yel">in the walls</span>.');
@@ -373,7 +451,7 @@ function scrBye(){
     add('&nbsp;'); add('<pre class="red">NO CARRIER</pre>'); add('&nbsp;');
     const rd=add('<span class="yel pick">[ redial ]</span>');
     rd.style.cursor='pointer'; rd.dataset.redial='1';
-    rd.addEventListener('click',boot);
+    rd.addEventListener('click',e=>{ e.stopPropagation(); boot(); });
   }, 500);
 }
 
@@ -383,7 +461,11 @@ document.addEventListener('keydown', e=>{
   // LinkedIn link on the granted screen) and let Cmd/Ctrl chords (copy, reload) pass.
   if(e.ctrlKey||e.metaKey||e.altKey) return;
   if(['Tab','Shift','Control','Alt','Meta'].includes(e.key)) return;
-  if(mode==='menu'){ const k=e.key.toLowerCase(); if('awcgq'.includes(k)) choose(k); }
+  if(e.target && e.target.id==='capture') return;          // let the door input own its keystrokes
+  const lk = e.key.toLowerCase();
+  if(lk==='t'){ e.preventDefault(); toggleEra(); return; } // global: switch era
+  if(lk==='v'){ e.preventDefault(); toggleCam(); return; } // global: camera FX
+  if(mode==='menu'){ if('awcgq'.includes(lk)) choose(lk); }
   else if(mode==='pager'){ drawMenu(); }
   else if(mode==='denied'){ scrDoor(); }
   else if(mode==='granted'){ drawMenu(); }
@@ -396,6 +478,263 @@ screenEl.addEventListener('click', e=>{
   else if(mode==='granted' && !e.target.closest('a')){ drawMenu(); }
   else if(mode==='bye' && e.target.dataset.redial){ boot(); }
 });
+
+/* ============================================================
+   FX LAYER — era skin (raw WebGL, no libraries) + camera FX.
+   Retro = phosphor field + ASCII webcam. Modern = liquid chrome
+   + webcam refracted into it (a "liquid mirror"). All opt-in.
+   ============================================================ */
+const FX = (function(){
+  const cv = document.getElementById('fx');
+  let gl=null;
+  try{ gl = cv.getContext('webgl',{antialias:false,alpha:false,premultipliedAlpha:false}); }catch(e){}
+  let ok = !!gl;
+
+  // --- era + transition state (era: 0 retro, 1 modern) ---
+  let era=0, anim=null, tilt=[0,0], tiltT=[0,0];
+  let forceDraw=true, lastCamUp=0, lastAscii=0, starting=false, stopReq=false;
+
+  const VS = 'attribute vec2 p; void main(){ gl_Position=vec4(p,0.,1.); }';
+  const FS = [
+'precision highp float;',
+'uniform vec2 uRes; uniform float uTime;',
+'uniform float uFrom, uTo, uWave; uniform vec2 uOrigin; uniform float uMaxR; uniform vec2 uTilt;',
+'uniform sampler2D uCam; uniform float uCamOn; uniform float uCamAsp;',
+'float hash(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }',
+'float noise(vec2 p){ vec2 i=floor(p), f=fract(p); float a=hash(i),b=hash(i+vec2(1.,0.)),c=hash(i+vec2(0.,1.)),d=hash(i+vec2(1.,1.));',
+'  vec2 u=f*f*(3.-2.*f); return mix(mix(a,b,u.x),mix(c,d,u.x),u.y); }',
+'float fbm(vec2 p){ float s=0.,a=.5; mat2 m=mat2(1.6,1.2,-1.2,1.6); for(int i=0;i<5;i++){ s+=a*noise(p); p=m*p; a*=.5; } return s; }',
+'vec3 pal(float t){ t=clamp(t,0.,1.);',
+'  vec3 c0=vec3(.05,.03,.16), c1=vec3(.31,.20,.92), c2=vec3(.55,.40,1.), c3=vec3(.13,.83,.93), c4=vec3(.92,.95,1.);',
+'  if(t<.25) return mix(c0,c1,t/.25);',
+'  if(t<.5)  return mix(c1,c2,(t-.25)/.25);',
+'  if(t<.75) return mix(c2,c3,(t-.5)/.25);',
+'  return mix(c3,c4,(t-.75)/.25); }',
+'vec2 camUV(vec2 uv){ float sAsp=uRes.x/uRes.y;',                                                 // cover-fit the feed (no stretch) + mirror
+'  vec2 c=vec2(uv.x/sAsp, uv.y);',
+'  if(sAsp>uCamAsp) c.y*=uCamAsp/sAsp; else c.x*=sAsp/uCamAsp;',
+'  c+=0.5; c.x=1.-c.x; return c; }',
+'vec3 modernScene(vec2 uv){',
+'  vec2 p=uv*2.4 + uTilt*.5; float t=uTime*.06;',
+'  vec2 w=vec2(fbm(p+vec2(0.,t)), fbm(p+vec2(5.2,-t)));',
+'  float e=.0028; float h=fbm(p+2.2*w+t*.5);',
+'  float hx=fbm(p+vec2(e,0.)+2.2*w+t*.5), hy=fbm(p+vec2(0.,e)+2.2*w+t*.5);',
+'  vec3 n=normalize(vec3((h-hx)/e,(h-hy)/e,1.));',
+'  vec3 v=vec3(0.,0.,1.); float fres=pow(1.-max(dot(n,v),0.),3.);',
+'  float ph=h*.9+fres*.7+uTime*.05; float tt=1.-abs(1.-2.*fract(ph));',
+'  vec3 col=pal(tt);',
+'  vec3 L=normalize(vec3(.45+uTilt.x*1.2,.65-uTilt.y*1.2,.7)); vec3 r=reflect(-L,n);',
+'  float spec=pow(max(dot(r,v),0.),64.), spec2=pow(max(dot(r,v),0.),16.);',
+'  col+=spec*1.4 + spec2*.35;',
+'  col+=fres*vec3(.35,.45,.7)*.6;',
+'  col*=mix(.38,1.18,h); col=mix(vec3(.012,.015,.045),col,.95);',
+'  if(uCamOn>.5){',                                                                              // liquid mirror: camera is the base, chrome rides on top
+'    vec2 cuv=camUV(uv) + n.xy*.045 + w*.02;',                                                   // gentle liquid refraction
+'    vec3 cam=texture2D(uCam, clamp(cuv,0.,1.)).rgb;',
+'    float lum=dot(cam,vec3(.299,.587,.114));',
+'    vec3 duo=pal(clamp(lum*.92+.04,0.,1.));',                                                   // tint into the brand palette
+'    vec3 styled=mix(cam, duo, .5);',                                                            // keep half the real video -> clearly you
+'    styled += spec*1.3 + fres*vec3(.4,.5,.8)*.35;',                                             // liquid highlights + iridescent rim on top
+'    col=mix(col, styled, .92);',                                                                // camera dominates the frame
+'  }',
+'  return col;',
+'}',
+'vec3 retroScene(vec2 uv,vec2 px){',
+'  float scan=.5+.5*sin(px.y*1.4 - uTime*2.);',
+'  float glow=fbm(uv*3.+uTime*.05);',
+'  return vec3(.012,.02,.03)+vec3(.10,.55,.55)*.05*glow+vec3(0.,.03,.04)*scan*.12;',
+'}',
+'void main(){',
+'  vec2 px=gl_FragCoord.xy; vec2 uv=(px-.5*uRes)/uRes.y;',
+'  float d=distance(px,uOrigin); float wr=uWave*uMaxR; float RIM=uRes.y*.10; float edge=d-wr;',
+'  float sel=smoothstep(-RIM*.55,RIM*.55,edge);',
+'  float ripple=exp(-pow(edge/RIM,2.));',
+'  vec2 dir=normalize(px-uOrigin+1e-3);',
+'  vec2 uvR=uv+dir*ripple*.05*sin(edge*.05-uTime*3.);',
+'  vec3 modernC=(uTo>.5||uFrom>.5)?modernScene(uvR):vec3(0.); vec3 retroC=retroScene(uv,px);',
+'  vec3 newCol=mix(retroC,modernC,uTo); vec3 oldCol=mix(retroC,modernC,uFrom);',
+'  vec3 col=mix(newCol,oldCol,sel);',
+'  float live=1.-step(1.,uWave);',
+'  col+=pal(fract(uTime*.13))*ripple*live*.9 + ripple*live*.3;',
+'  float vg=smoothstep(1.3,.35,length(uv)); col*=mix(.8,1.,vg);',
+'  col+=(hash(px+fract(uTime)*131.7)-.5)*.025;',
+'  gl_FragColor=vec4(col,1.);',
+'}'].join('\n');
+
+  let prog,U={},camTex=null;
+  function compile(t,s){ const o=gl.createShader(t); gl.shaderSource(o,s); gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.error('shader:',gl.getShaderInfoLog(o)); return o; }
+  if(ok){
+    prog=gl.createProgram(); gl.attachShader(prog,compile(gl.VERTEX_SHADER,VS)); gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,FS));
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){ console.error('link:',gl.getProgramInfoLog(prog)); ok=false; cv.style.display='none'; }
+    gl.useProgram(prog);
+    const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+    const loc=gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    ['uRes','uTime','uFrom','uTo','uWave','uOrigin','uMaxR','uTilt','uCam','uCamOn','uCamAsp'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+    gl.uniform1f(U.uFrom,0); gl.uniform1f(U.uTo,0); gl.uniform1f(U.uWave,1); gl.uniform2f(U.uTilt,0,0);
+    gl.uniform1f(U.uCamOn,0); gl.uniform1f(U.uCamAsp,1.33); gl.uniform1i(U.uCam,0);
+    camTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,camTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);   // video frames are top-down — flip once here, not per frame
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([10,10,20,255]));
+  }
+
+  let DPR=Math.min(devicePixelRatio||1, 1.6);
+  function resize(){ if(!ok) return; DPR=Math.min(devicePixelRatio||1, innerWidth<700?1.2:1.6);
+    cv.width=Math.floor(innerWidth*DPR); cv.height=Math.floor(innerHeight*DPR);
+    gl.viewport(0,0,cv.width,cv.height); gl.uniform2f(U.uRes,cv.width,cv.height); forceDraw=true; }
+  addEventListener('resize',resize); if(ok) resize();
+  addEventListener('pointermove',e=>{ tiltT=[(e.clientX/innerWidth-.5)*.5,(e.clientY/innerHeight-.5)*.5]; });
+  addEventListener('deviceorientation',e=>{ if(e.gamma!=null){ tiltT=[Math.max(-1,Math.min(1,e.gamma/35))*.5, Math.max(-1,Math.min(1,(e.beta-40)/35))*.5]; } });
+
+  function easeInOut(x){ return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2; }
+  let hidden=false; document.addEventListener('visibilitychange',()=>{ hidden=document.hidden; });
+
+  // --- camera ---
+  let stream=null, video=null, camOn=false, asciiCv=null, asciiCtx=null;
+  const asciiEl=document.getElementById('ascii');
+  const RAMP=' .,:;irsXA253hMHGS#9B&@'; // dark -> light
+  async function startCam(){
+    if(camOn || starting) return true;
+    starting=true; stopReq=false;
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ flash('camera not supported here'); return false; }
+      // the modern liquid-mirror needs WebGL; without it, fall back to the ASCII (retro) effect so the camera never runs blind
+      if(!ok && era===1) forceRetro();
+      let s;
+      try{ s = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false }); }
+      catch(err){ flash('camera blocked — that\'s fine'); return false; }
+      if(stopReq){ s.getTracks().forEach(t=>t.stop()); return false; }   // turned off mid-acquisition
+      stream=s;
+      video=document.createElement('video'); video.playsInline=true; video.muted=true; video.srcObject=stream;
+      try{ await video.play(); }catch(e){}
+      asciiCv=document.createElement('canvas'); asciiCtx=asciiCv.getContext('2d',{willReadFrequently:true});
+      camOn=true; document.body.classList.add('cam'); forceDraw=true;
+      if(ok){ const t=stream.getVideoTracks()[0]; const s2=t&&t.getSettings?t.getSettings():{}; gl.uniform1f(U.uCamAsp,(s2.width&&s2.height)?s2.width/s2.height:1.33); gl.uniform1f(U.uCamOn,1); }
+      layoutAscii();
+      return true;
+    } finally { starting=false; }
+  }
+  function stopCam(){
+    stopReq=true;
+    camOn=false; document.body.classList.remove('cam');
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    if(video){ video.srcObject=null; video=null; }
+    asciiEl.textContent=''; if(ok) gl.uniform1f(U.uCamOn,0);
+  }
+  let cols=0,rows=0;
+  function glyphAdvance(fs){
+    // VT323's advance isn't exactly .5em — measure it so the grid fills the full width
+    const p=document.createElement('span'); p.setAttribute('aria-hidden','true');
+    p.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;letter-spacing:0;'+
+      'font-family:"VT323",ui-monospace,"Courier New",monospace;font-size:'+fs+'px';
+    p.textContent=Array(201).join('M');
+    document.body.appendChild(p);
+    const w=p.getBoundingClientRect().width/200; document.body.removeChild(p);
+    return w>0.5 ? w : fs*0.5;
+  }
+  function layoutAscii(){
+    const fs=Math.max(8, Math.round(innerWidth/110));
+    asciiEl.style.fontSize=fs+'px';
+    const chW=glyphAdvance(fs), chH=fs*0.92;
+    cols=Math.max(20, Math.ceil(innerWidth/chW));   // ceil so the feed reaches the right edge, never short
+    rows=Math.max(12, Math.ceil(innerHeight/chH));
+    if(asciiCv){ asciiCv.width=cols; asciiCv.height=rows; }
+  }
+  addEventListener('resize',()=>{ if(camOn) layoutAscii(); });
+  function renderAscii(now){
+    if(now-lastAscii < 55) return;          // ~18fps — getImageData + reflow is heavy, no need for 60
+    lastAscii=now;
+    if(!video || video.readyState<2 || !asciiCtx) return;
+    asciiCtx.drawImage(video,0,0,cols,rows);
+    let data; try{ data=asciiCtx.getImageData(0,0,cols,rows).data; }catch(e){ return; }
+    const lines=new Array(rows); const N=RAMP.length;
+    for(let y=0;y<rows;y++){
+      let line='';
+      for(let x=cols-1;x>=0;x--){            // mirror horizontally (selfie)
+        const i=(y*cols+x)*4;
+        const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114)/255;
+        line+=RAMP[Math.min(N-1, (lum*N)|0)];
+      }
+      lines[y]=line;
+    }
+    asciiEl.textContent=lines.join('\n');
+  }
+
+  // --- render loop ---
+  function frame(now){
+    requestAnimationFrame(frame);
+    if(hidden) return;
+    if(camOn){
+      if(ok && era===1 && video && video.readyState>=2){
+        if(now-lastCamUp >= 32){              // ~30fps texture upload (most webcams are 30fps anyway)
+          lastCamUp=now; gl.bindTexture(gl.TEXTURE_2D,camTex);
+          try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video); }catch(e){}
+        }
+        gl.uniform1f(U.uCamOn,1);
+      } else if(ok){ gl.uniform1f(U.uCamOn,0); }
+      if(era===0) renderAscii(now);          // retro ascii cam (2D, no WebGL needed)
+    }
+    if(!ok) return;
+    // retro idle is visually static (and hidden behind the panel) — only modern era or an in-flight
+    // transition produce motion, so skip the expensive fragment shader otherwise. huge battery win.
+    if(!(forceDraw || anim || era===1)) return;
+    gl.uniform1f(U.uTime, reduce?0:now*0.001);
+    if(!reduce){ tilt[0]+=(tiltT[0]-tilt[0])*.06; tilt[1]+=(tiltT[1]-tilt[1])*.06; }
+    gl.uniform2f(U.uTilt,tilt[0],tilt[1]);
+    if(anim){
+      let p=anim.dur?Math.min((now-anim.t0)/anim.dur,1):1; let ev=reduce?1:easeInOut(p);
+      gl.uniform1f(U.uWave,ev);
+      if(p>=1){ era=anim.to; anim=null; gl.uniform1f(U.uWave,1); gl.uniform1f(U.uFrom,era); gl.uniform1f(U.uTo,era); }
+    } else { gl.uniform1f(U.uWave,1); gl.uniform1f(U.uFrom,era); gl.uniform1f(U.uTo,era); }
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    forceDraw=false;
+  }
+  requestAnimationFrame(frame);   // loop drives ascii cam even without WebGL
+
+  // --- public: era + camera toggles ---
+  function setEraClass(e){ document.body.classList.toggle('modern', e===1); document.body.classList.toggle('retro', e===0); }
+  function forceRetro(){ era=0; anim=null; setEraClass(0); forceDraw=true; if(ok){ gl.uniform1f(U.uFrom,0); gl.uniform1f(U.uTo,0); gl.uniform1f(U.uWave,1); } }
+  function switchEra(originCss){
+    if(anim) return;
+    const to=1-era, from=era;
+    const ox=originCss?originCss.x:innerWidth-60, oy=originCss?originCss.y:30;
+    setEraClass(to);                                   // DOM skin crossfades via CSS now
+    forceDraw=true;
+    if(!ok){ era=to; return; }
+    const maxR=Math.hypot(Math.max(ox,innerWidth-ox),Math.max(oy,innerHeight-oy));
+    gl.uniform1f(U.uFrom,from); gl.uniform1f(U.uTo,to);
+    gl.uniform2f(U.uOrigin,ox*DPR,(innerHeight-oy)*DPR); gl.uniform1f(U.uMaxR,maxR*DPR);
+    anim={to,dur:reduce?0:1000,t0:performance.now()};
+  }
+  return {
+    switchEra,
+    toggleCam: async ()=>{ if(camOn || starting) stopCam(); else await startCam(); },
+    getEra: ()=>era,
+  };
+})();
+
+function flash(msg){
+  const f=document.createElement('div'); f.textContent=msg;
+  f.style.cssText='position:fixed;top:54px;right:14px;z-index:30;background:rgba(20,22,30,.9);color:#cdd3e3;'+
+    'font:13px "Space Grotesk",sans-serif;padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);'+
+    'opacity:0;transition:opacity .2s';
+  document.body.appendChild(f); requestAnimationFrame(()=>f.style.opacity='1');
+  setTimeout(()=>{ f.style.opacity='0'; setTimeout(()=>f.remove(),300); }, 2200);
+}
+
+function originFrom(el){ const r=el.getBoundingClientRect(); return {x:r.left+r.width/2, y:r.top+r.height/2}; }
+function toggleEra(){ FX.switchEra(originFrom(document.getElementById('eraBtn'))); }
+function toggleCam(){ FX.toggleCam(); }
+
+const eraBtn=document.getElementById('eraBtn'), camBtn=document.getElementById('camBtn');
+eraBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleEra(); });
+eraBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleEra(); } });
+camBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleCam(); });
+camBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleCam(); } });
 
 boot();
 </script>

@@ -86,6 +86,37 @@ Everything is in `index.html`: HTML shell + `<style>` + one `<script>`.
   keydown handler also early-returns on Tab and Cmd/Ctrl/Alt chords so Tab can
   reach the LinkedIn link on the granted screen and Cmd+C can copy it.
 
+## 4b. The FX layer — era skin + camera (the `FX` module)
+
+Same DOM, two skins, plus an optional webcam. All in raw inline **WebGL (no libs)**.
+
+- **Two eras**, toggled with **`T`** (or tapping the `1989/2025` pill): `retro` (the
+  BBS) and `modern` (a live "liquid chrome" fragment shader behind a glass-skinned
+  panel). The skin is pure CSS driven by `body.retro`/`body.modern`; the state
+  machine and every screen are unchanged — modern just hides the box-drawing
+  (`.deco`/`.sepln`), swaps the ASCII logo for a `.brandModern` wordmark, and
+  restyles `.pick` rows. Switching runs a **circular-reveal transition** in the
+  shader (a GPU rim sweeps from the toggle) synced with the CSS crossfade.
+- **Camera (opt-in, never auto-prompted)**, toggled with **`V`** / the `cam`
+  button. `getUserMedia` is called **only** from that explicit action; tracks are
+  `.stop()`ed on toggle-off; denial/no-camera/insecure-context flash a friendly
+  message and never get stuck. Two FX: **retro = ASCII webcam** (luminance→`RAMP`,
+  rendered into the fixed `#ascii` <pre> background) and **modern = "liquid mirror"**
+  (the webcam fed as a WebGL texture, refracted by the flow — camera is the base,
+  chrome rides on top, ~92% camera so it's clearly *you*).
+- **Perf (hardened 2026-06-15, after an adversarial review):** the render loop
+  **skips the fragment-shader draw entirely in retro idle** (only modern/transition/
+  camera draw) — the big battery win since retro is the default; `modernScene` is
+  guarded by a uniform branch so it isn't computed in retro; the ASCII readback is
+  throttled to ~18fps and built via array-join; the camera texture upload is
+  throttled to ~30fps; DPR is capped (1.2 mobile / 1.6 desktop); the loop pauses
+  when the tab is hidden. No-WebGL devices get the CSS skin only, and turning the
+  camera on there auto-falls-back to retro so it never runs blind. A shader-link
+  failure sets `ok=false` and hides the canvas (CSS fallback).
+- **New global keys:** `T` (era) and `V` (camera) are handled in the global keydown
+  but it early-returns when the target is `#capture`, so typing the Door answer
+  (which contains `t`) never toggles the era. Keep that guard.
+
 ## 5. The Door puzzle (current state)
 
 A real, working **three-layer** puzzle. Layers 1–2 live in the page UI; layer 3
@@ -129,7 +160,9 @@ Pablo's stated ethos — plus a "say 'node 1' when you message me" handshake).
 
 **Done:** boot sequence, ANSI logo, menu (hotkey + tap), about/work/contact
 screens, the Door (3-layer puzzle + granted/denied + console shell), logoff/redial,
-reduced-motion + mobile support, Open Graph tags for the LinkedIn preview card.
+reduced-motion + mobile support, Open Graph tags for the LinkedIn preview card,
+the real-mobile `tel:` dial line, and the **FX layer** (retro/modern era skin via
+WebGL + opt-in ASCII/liquid-mirror webcam — see §4b), perf-hardened.
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
