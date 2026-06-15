@@ -143,12 +143,15 @@ camera (§8): never auto-prompted, torn down on toggle-off, everything stays loc
   it's the proven accessibility pattern. A ~220ms grace tolerates tracking blips, and
   you must leave a target and return to click it again (no machine-gun repeats).
 - **Hover the ▲/▼ arrows to scroll.** Dwell alone can't move a long page, so gesture
-  mode shows two on-screen scroll arrows (right edge, only when content overflows);
-  resting the cursor on one scrolls continuously, accelerating the longer you hold
-  (`SCROLL_MIN`→`SCROLL_MAX`). This is **position-only — no pose detection**, which is
-  the whole point: fist/pinch leaned on landmark *shape*, which is the flaky part;
-  cursor position is solid, so this just works. (An earlier fist-to-drag-scroll was
-  tried and dropped — too unreliable in practice.) In the
+  mode shows two scroll buttons **at bottom-center** (shown only when content
+  overflows); resting the cursor on one scrolls continuously, accelerating the longer
+  you hold (`SCROLL_MIN`→`SCROLL_MAX`). Position-only — **no pose detection** (fist/
+  pinch leaned on landmark *shape*, the flaky part; cursor position is solid).
+  **Placement matters:** the cursor's range maps to the full camera frame, so screen
+  *edges* require the hand at the camera's edge (poorly tracked / out of frame) —
+  that's why an earlier right-edge arrow placement (and a fist-to-drag-scroll) failed.
+  Bottom-center is an easy-reach zone (centered horizontally, low vertically), so the
+  hand stays well inside the frame. Rule of thumb: keep gesture targets central. In the
   **modern** era your hand(s) still **push and ripple the liquid-chrome shader** —
   landmarks feed `uHand[2]` / `uHandOn[2]` / `uPinch[2]`; the chrome parts around your
   palm and *closing* your hand intensifies the push (the one thing pinch still does).
