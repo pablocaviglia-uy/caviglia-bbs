@@ -153,6 +153,20 @@
   a.ghover{color:#fff;background:rgba(120,220,255,.14);border-radius:3px}
   body.modern .pick.ghover{background:rgba(124,108,255,.18);border-color:rgba(124,108,255,.5)}
   body.modern a.ghover{color:#fff;background:rgba(124,108,255,.2)}
+  /* gesture legend — persistent "what do the gestures do" guide while gesture mode is live */
+  .glegend{position:fixed;left:14px;bottom:14px;z-index:23;display:none;
+    font-family:"Space Grotesk",system-ui,sans-serif;font-size:12px;color:#cdd3e3;
+    background:rgba(18,20,28,.74);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    border:1px solid rgba(124,108,255,.4);border-radius:13px;padding:11px 14px;line-height:1.65;
+    box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  body.gesture:not(.gesture-load) .glegend{display:block}
+  .glegend .gl-title{font-weight:500;color:#cbbcff;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px;margin-bottom:6px}
+  .glegend .gl-row{display:flex;align-items:baseline;gap:9px}
+  .glegend .gl-k{display:inline-block;min-width:46px;color:#fff;font-weight:500;
+    background:rgba(124,108,255,.22);border:1px solid rgba(124,108,255,.4);border-radius:6px;
+    padding:1px 7px;text-align:center;font-size:11px}
+  .glegend .gl-exit{margin-top:5px;opacity:.7}
+  @media (max-width:520px){ .glegend{font-size:11px;padding:9px 11px} .glegend .gl-k{min-width:40px} }
 
   /* ---------- MODERN era skin (same DOM, new dressing) ---------- */
   body.modern .bbs{
@@ -203,16 +217,25 @@
   </div>
 
   <div class="hud">
-    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" aria-checked="false" tabindex="0">
+    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" aria-checked="false" tabindex="0" title="Switch era — 1989 BBS / 2025 liquid chrome (key: T)">
       <span class="e-r">1989</span><span class="e-m">2025</span>
     </div>
-    <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" aria-checked="false" tabindex="0">
+    <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" aria-checked="false" tabindex="0" title="Webcam effect — opt-in: ASCII in retro, liquid mirror in modern (key: V)">
       <span class="dot"></span><span>cam</span>
     </div>
-    <div class="camb" id="gestBtn" role="switch" aria-label="toggle gesture control with your hands" aria-checked="false" tabindex="0">
+    <div class="camb" id="gestBtn" role="switch" aria-label="toggle gesture control with your hands" aria-checked="false" tabindex="0" title="Hand gestures — opt-in: point to move, pinch to click (key: H)">
       <span class="dot"></span><span>hands</span>
     </div>
     <div class="tip">press <b>T</b> era · <b>V</b> cam · <b>H</b> hands</div>
+  </div>
+
+  <!-- gesture legend: only visible while gesture mode is live -->
+  <div class="glegend" aria-hidden="true">
+    <div class="gl-title">gesture mode · live</div>
+    <div class="gl-row"><span class="gl-k">point</span>move the ring</div>
+    <div class="gl-row"><span class="gl-k">pinch</span>thumb + index = click</div>
+    <div class="gl-row"><span class="gl-k">move</span>hands push the liquid</div>
+    <div class="gl-row gl-exit"><span class="gl-k">H</span>exit gesture mode</div>
   </div>
 
 <script>
@@ -825,13 +848,14 @@ const GESTURE = (function(){
   const coarse    = matchMedia('(pointer:coarse)').matches;
   const NUM_HANDS = coarse ? 1 : 2;                                             // 2 hands push the liquid on desktop
   const INFER_MS  = coarse ? 55 : 33;                                          // ~18fps mobile / ~30fps desktop
-  const PINCH_ON  = 0.34, PINCH_OFF = 0.50;                                    // hysteresis on dist(thumb,index)/dist(wrist,midMCP)
+  const PINCH_ON  = 0.34, PINCH_OFF = 0.50, OPEN_AT = 0.6;                     // hysteresis + a "clearly open / pointing" gate
   const CURSOR_LERP = 0.4, RATIO_EMA = 0.5;
 
   let desired=false, active=false, loading=false, gen=0, landmarker=null, loadPromise=null, rafId=null;
   let lastInfer=0, lastVideoTime=-1, ownsCam=false;
   let cursor=null, hover=null;
   let cx=0, cy=0, haveCursor=false, pinching=false, ratioS=1, lastFire=0;
+  let openX=0, openY=0, haveOpen=false;                                        // last pointing spot while the hand was open — a pinch clicks HERE, not at the drifted fingertip
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
@@ -881,7 +905,7 @@ const GESTURE = (function(){
     const hands=(res&&res.landmarks)? res.landmarks : [];
     if(!hands.length){
       showCursor(false); setPinchVisual(false); clearHover(); FX.setHands([]);
-      haveCursor=false; pinching=false; return;
+      haveCursor=false; pinching=false; haveOpen=false; return;
     }
     // every detected hand pushes the liquid (palm = middle-finger MCP)
     const shHands=[];
@@ -896,13 +920,21 @@ const GESTURE = (function(){
     const p=hands[0];
     const iN=toScreenN(p[8].x, p[8].y);
     const tx=clamp(iN.nx*innerWidth,0,innerWidth), ty=clamp(iN.ny*innerHeight,0,innerHeight);
-    if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
-    moveCursor(cx,cy); showCursor(true); updateHover(cx,cy);
-    // pinch: EMA-smoothed ratio + Schmitt trigger
     const raw=dist(p[4],p[8])/(dist(p[0],p[9])||1e-4);
-    ratioS+=(raw-ratioS)*RATIO_EMA;
-    if(!pinching && ratioS<PINCH_ON){ pinching=true; setPinchVisual(true); firePinch(cx,cy); }
-    else if(pinching && ratioS>PINCH_OFF){ pinching=false; setPinchVisual(false); }
+    ratioS+=(raw-ratioS)*RATIO_EMA;                                            // EMA-smoothed pinch ratio
+    if(pinching){
+      // HOLD: keep the ring locked where the click landed — the pinch drags the fingertip, so don't chase it
+      if(ratioS>PINCH_OFF){ pinching=false; setPinchVisual(false); }
+    } else {
+      if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
+      if(ratioS>OPEN_AT){ openX=cx; openY=cy; haveOpen=true; }                  // hand clearly open -> remember the pointing spot
+      if(ratioS<PINCH_ON){                                                      // pinch closed -> click where you were pointing, then freeze
+        pinching=true; setPinchVisual(true);
+        if(haveOpen){ cx=openX; cy=openY; }
+        firePinch(cx,cy);
+      }
+    }
+    moveCursor(cx,cy); showCursor(true); updateHover(cx,cy);
   }
 
   function loop(now){
