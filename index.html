@@ -133,6 +133,26 @@
   body.cam .camb{color:#eef0f7;border-color:rgba(255,93,93,.5)}
   body.cam .camb .dot{background:#ff5d5d;box-shadow:0 0 8px #ff5d5d}
   .hud .tip{position:absolute;top:38px;right:2px;font-size:11px;color:#67708a;white-space:nowrap}
+  /* gesture (hand) control: HUD pill state + on-screen hand cursor + hover highlight */
+  body.gesture #gestBtn,body.gesture-load #gestBtn{color:#eef0f7;border-color:rgba(124,108,255,.6)}
+  body.gesture #gestBtn .dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  body.gesture-load #gestBtn .dot{background:var(--yel);box-shadow:0 0 8px var(--yel);animation:gpulse .85s ease-in-out infinite}
+  @keyframes gpulse{50%{opacity:.3}}
+  #gcursor{position:fixed;left:0;top:0;z-index:24;width:54px;height:54px;pointer-events:none;
+    opacity:0;transition:opacity .22s ease;will-change:transform,opacity}
+  #gcursor.on{opacity:1}
+  #gcursor .ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(170,159,255,.92);
+    box-shadow:0 0 20px rgba(124,108,255,.65),inset 0 0 12px rgba(124,108,255,.35);
+    transition:transform .09s ease,border-color .09s ease,box-shadow .09s ease}
+  #gcursor .ring::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;
+    border-radius:50%;background:#fff;box-shadow:0 0 6px #fff}
+  #gcursor.pinch .ring{transform:scale(.5);border-color:#fff;box-shadow:0 0 30px rgba(255,255,255,.85),inset 0 0 16px rgba(170,159,255,.6)}
+  #gcursor.over .ring{border-color:#fff;box-shadow:0 0 24px rgba(255,255,255,.8),inset 0 0 13px rgba(170,159,255,.5)}
+  .pick.ghover{background:rgba(120,220,255,.12)}
+  .pick.ghover .key{color:#fff}
+  a.ghover{color:#fff;background:rgba(120,220,255,.14);border-radius:3px}
+  body.modern .pick.ghover{background:rgba(124,108,255,.18);border-color:rgba(124,108,255,.5)}
+  body.modern a.ghover{color:#fff;background:rgba(124,108,255,.2)}
 
   /* ---------- MODERN era skin (same DOM, new dressing) ---------- */
   body.modern .bbs{
@@ -167,7 +187,7 @@
   body.modern .status b{color:#b9b1ff}
 
   @media (prefers-reduced-motion:reduce){ .bbs::after{animation:none;opacity:.92} .cur{animation:none}
-    .bbs,.status{transition:none} }
+    .bbs,.status{transition:none} #gcursor,#gcursor .ring{transition:none} #gestBtn .dot{animation:none} }
 </style>
 </head>
 <body class="retro">
@@ -183,13 +203,16 @@
   </div>
 
   <div class="hud">
-    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" tabindex="0">
+    <div class="era" id="eraBtn" role="switch" aria-label="switch era (1989 / 2025)" aria-checked="false" tabindex="0">
       <span class="e-r">1989</span><span class="e-m">2025</span>
     </div>
-    <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" tabindex="0">
+    <div class="camb" id="camBtn" role="switch" aria-label="toggle camera" aria-checked="false" tabindex="0">
       <span class="dot"></span><span>cam</span>
     </div>
-    <div class="tip">press <b>T</b> era · <b>V</b> cam</div>
+    <div class="camb" id="gestBtn" role="switch" aria-label="toggle gesture control with your hands" aria-checked="false" tabindex="0">
+      <span class="dot"></span><span>hands</span>
+    </div>
+    <div class="tip">press <b>T</b> era · <b>V</b> cam · <b>H</b> hands</div>
   </div>
 
 <script>
@@ -329,7 +352,9 @@ function scrDoor(){
   add('&nbsp;');
   const line=add('<span class="mag">ACCESS CODE ›</span> <span class="inp"><span class="field"><span class="typed" id="typed"></span><span class="cur"></span><input id="capture" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="access code"></span></span>');
   add('&nbsp;');
-  add('<span class="dim">[Q] / tap here to slink back to the menu</span>').addEventListener('click',e=>{ if(mode==='door'){ e.stopPropagation(); drawMenu(); } });
+  const backLine=add('<span class="dim">[Q] / tap here to slink back to the menu</span>');
+  backLine.setAttribute('data-gback','1');
+  backLine.addEventListener('click',e=>{ if(mode==='door'){ e.stopPropagation(); drawMenu(); } });
   const cap=document.getElementById('capture'), typed=document.getElementById('typed');
   cap.addEventListener('input',()=>{ buf=cap.value; typed.textContent=buf; });
   cap.addEventListener('keydown',e=>{
@@ -456,6 +481,13 @@ function scrBye(){
 }
 
 /* ---------- global input ---------- */
+// shared "advance" used by both keydown and the gesture pinch (keeps them in lockstep)
+function advanceFromInput(){
+  if(mode==='pager') drawMenu();
+  else if(mode==='denied') scrDoor();
+  else if(mode==='granted') drawMenu();
+  else if(mode==='bye') boot();
+}
 document.addEventListener('keydown', e=>{
   // don't treat focus/shortcut keys as "advance": let Tab move focus (e.g. to the
   // LinkedIn link on the granted screen) and let Cmd/Ctrl chords (copy, reload) pass.
@@ -465,11 +497,9 @@ document.addEventListener('keydown', e=>{
   const lk = e.key.toLowerCase();
   if(lk==='t'){ e.preventDefault(); toggleEra(); return; } // global: switch era
   if(lk==='v'){ e.preventDefault(); toggleCam(); return; } // global: camera FX
+  if(lk==='h'){ e.preventDefault(); toggleGesture(); return; } // global: gesture (hand) control
   if(mode==='menu'){ if('awcgq'.includes(lk)) choose(lk); }
-  else if(mode==='pager'){ drawMenu(); }
-  else if(mode==='denied'){ scrDoor(); }
-  else if(mode==='granted'){ drawMenu(); }
-  else if(mode==='bye'){ boot(); }
+  else advanceFromInput();
 });
 screenEl.addEventListener('click', e=>{
   if(e.target.closest('a')) return;
@@ -500,6 +530,7 @@ const FX = (function(){
 'uniform vec2 uRes; uniform float uTime;',
 'uniform float uFrom, uTo, uWave; uniform vec2 uOrigin; uniform float uMaxR; uniform vec2 uTilt;',
 'uniform sampler2D uCam; uniform float uCamOn; uniform float uCamAsp;',
+'uniform vec2 uHand[2]; uniform float uHandOn[2]; uniform float uPinch[2];',
 'float hash(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }',
 'float noise(vec2 p){ vec2 i=floor(p), f=fract(p); float a=hash(i),b=hash(i+vec2(1.,0.)),c=hash(i+vec2(0.,1.)),d=hash(i+vec2(1.,1.));',
 '  vec2 u=f*f*(3.-2.*f); return mix(mix(a,b,u.x),mix(c,d,u.x),u.y); }',
@@ -516,6 +547,15 @@ const FX = (function(){
 '  c+=0.5; c.x=1.-c.x; return c; }',
 'vec3 modernScene(vec2 uv){',
 '  vec2 p=uv*2.4 + uTilt*.5; float t=uTime*.06;',
+'  float hGlow=0.0, hRipple=0.0;',                                                  // hand interaction accumulators
+'  for(int i=0;i<2;i++){',
+'    if(uHandOn[i]>0.001){',
+'      vec2 hd=uv-uHand[i]; float r=length(hd); float g=exp(-r*r*9.0);',           // localized falloff around the hand
+'      p+=normalize(hd+vec2(1e-4))*g*uHandOn[i]*(0.30+uPinch[i]*0.55);',           // push: the liquid parts around your hand
+'      hRipple+=sin(r*34.0-uTime*5.0)*exp(-r*r*6.0)*uHandOn[i]*(0.12+uPinch[i]*0.22);',
+'      hGlow+=g*uHandOn[i]*(0.5+uPinch[i]*1.3);',
+'    }',
+'  }',
 '  vec2 w=vec2(fbm(p+vec2(0.,t)), fbm(p+vec2(5.2,-t)));',
 '  float e=.0028; float h=fbm(p+2.2*w+t*.5);',
 '  float hx=fbm(p+vec2(e,0.)+2.2*w+t*.5), hy=fbm(p+vec2(0.,e)+2.2*w+t*.5);',
@@ -537,6 +577,8 @@ const FX = (function(){
 '    styled += spec*1.3 + fres*vec3(.4,.5,.8)*.35;',                                             // liquid highlights + iridescent rim on top
 '    col=mix(col, styled, .92);',                                                                // camera dominates the frame
 '  }',
+'  col += pal(fract(uTime*0.2+0.32))*hGlow*0.75 + vec3(0.10,0.13,0.22)*hGlow*0.6;',             // touch bloom where your hand is
+'  col += vec3(hRipple)*0.45;',                                                                   // expanding ripple shimmer
 '  return col;',
 '}',
 'vec3 retroScene(vec2 uv,vec2 px){',
@@ -573,8 +615,10 @@ const FX = (function(){
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
     const loc=gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
     ['uRes','uTime','uFrom','uTo','uWave','uOrigin','uMaxR','uTilt','uCam','uCamOn','uCamAsp'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+    U.uHand=gl.getUniformLocation(prog,'uHand[0]'); U.uHandOn=gl.getUniformLocation(prog,'uHandOn[0]'); U.uPinch=gl.getUniformLocation(prog,'uPinch[0]');
     gl.uniform1f(U.uFrom,0); gl.uniform1f(U.uTo,0); gl.uniform1f(U.uWave,1); gl.uniform2f(U.uTilt,0,0);
     gl.uniform1f(U.uCamOn,0); gl.uniform1f(U.uCamAsp,1.33); gl.uniform1i(U.uCam,0);
+    gl.uniform2fv(U.uHand,new Float32Array(4)); gl.uniform1fv(U.uHandOn,new Float32Array(2)); gl.uniform1fv(U.uPinch,new Float32Array(2));
     camTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,camTex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);   // video frames are top-down — flip once here, not per frame
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
@@ -710,10 +754,27 @@ const FX = (function(){
     gl.uniform2f(U.uOrigin,ox*DPR,(innerHeight-oy)*DPR); gl.uniform1f(U.uMaxR,maxR*DPR);
     anim={to,dur:reduce?0:1000,t0:performance.now()};
   }
+  // --- hand uniforms, driven by the GESTURE module (uv-space position + pinch per hand) ---
+  const _handUV=new Float32Array(4), _handOn=new Float32Array(2), _handPinch=new Float32Array(2);
+  function setHands(hands){
+    if(!ok) return;
+    for(let i=0;i<2;i++){
+      const h=hands && hands[i];
+      if(h){ _handUV[i*2]=h.ux; _handUV[i*2+1]=h.uy; _handOn[i]=1; _handPinch[i]=h.pinch||0; }
+      else { _handUV[i*2]=0; _handUV[i*2+1]=0; _handOn[i]=0; _handPinch[i]=0; }
+    }
+    gl.uniform2fv(U.uHand,_handUV); gl.uniform1fv(U.uHandOn,_handOn); gl.uniform1fv(U.uPinch,_handPinch);
+  }
+
   return {
     switchEra,
     toggleCam: async ()=>{ if(camOn || starting) stopCam(); else await startCam(); },
     getEra: ()=>era,
+    hasGL: ()=>ok,
+    getVideo: ()=>video,
+    camActive: ()=>camOn,
+    camStarting: ()=>starting,
+    startCam, stopCam, setHands,
   };
 })();
 
@@ -727,14 +788,195 @@ function flash(msg){
 }
 
 function originFrom(el){ const r=el.getBoundingClientRect(); return {x:r.left+r.width/2, y:r.top+r.height/2}; }
-function toggleEra(){ FX.switchEra(originFrom(document.getElementById('eraBtn'))); }
-function toggleCam(){ FX.toggleCam(); }
+// keep the role="switch" pills' aria-checked in sync with reality (screen readers)
+function reflectSwitches(){
+  eraBtn.setAttribute('aria-checked', document.body.classList.contains('modern')?'true':'false');
+  camBtn.setAttribute('aria-checked', FX.camActive()?'true':'false');
+  gestBtn.setAttribute('aria-checked', GESTURE.isActive()?'true':'false');
+}
+function toggleEra(){ FX.switchEra(originFrom(document.getElementById('eraBtn'))); reflectSwitches(); }
+async function toggleCam(){ await FX.toggleCam(); if(!FX.camActive() && GESTURE.isActive()) GESTURE.toggle(); reflectSwitches(); } // cam off => drop gesture (it needs the feed)
+function toggleGesture(){ GESTURE.toggle(); }
 
-const eraBtn=document.getElementById('eraBtn'), camBtn=document.getElementById('camBtn');
+const eraBtn=document.getElementById('eraBtn'), camBtn=document.getElementById('camBtn'), gestBtn=document.getElementById('gestBtn');
 eraBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleEra(); });
 eraBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleEra(); } });
 camBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleCam(); });
 camBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleCam(); } });
+gestBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleGesture(); });
+gestBtn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); toggleGesture(); } });
+
+/* ============================================================
+   GESTURE LAYER — opt-in hand tracking (MediaPipe Tasks Vision),
+   lazy-loaded from a CDN ONLY when the visitor opts in. Point a
+   hand at the screen to move a cursor; pinch thumb+index to "click"
+   menu rows / controls; in the modern era your hand(s) push and
+   ripple the liquid chrome in real time (landmarks -> shader).
+   Reuses the single webcam stream the FX module already owns — it
+   never opens a second camera. Inference is 100% local (WASM/WebGL);
+   no video or landmark data ever leaves the browser.
+   ============================================================ */
+const GESTURE = (function(){
+  const VER  = '0.10.35';                                                       // pinned: bundle + wasm dir must match
+  const ESM  = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+VER+'/vision_bundle.mjs';
+  const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+VER+'/wasm';
+  const MODEL= 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+  const coarse    = matchMedia('(pointer:coarse)').matches;
+  const NUM_HANDS = coarse ? 1 : 2;                                             // 2 hands push the liquid on desktop
+  const INFER_MS  = coarse ? 55 : 33;                                          // ~18fps mobile / ~30fps desktop
+  const PINCH_ON  = 0.34, PINCH_OFF = 0.50;                                    // hysteresis on dist(thumb,index)/dist(wrist,midMCP)
+  const CURSOR_LERP = 0.4, RATIO_EMA = 0.5;
+
+  let desired=false, active=false, loading=false, gen=0, landmarker=null, loadPromise=null, rafId=null;
+  let lastInfer=0, lastVideoTime=-1, ownsCam=false;
+  let cursor=null, hover=null;
+  let cx=0, cy=0, haveCursor=false, pinching=false, ratioS=1, lastFire=0;
+
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+
+  // ---- on-screen hand cursor ----
+  function ensureCursor(){
+    if(cursor) return;
+    cursor=document.createElement('div'); cursor.id='gcursor'; cursor.setAttribute('aria-hidden','true');
+    const ring=document.createElement('div'); ring.className='ring'; cursor.appendChild(ring);
+    document.body.appendChild(cursor);
+  }
+  function moveCursor(x,y){ if(cursor) cursor.style.transform='translate('+(x-27)+'px,'+(y-27)+'px)'; }
+  function showCursor(v){ if(cursor) cursor.classList.toggle('on', v); }
+  function setPinchVisual(v){ if(cursor) cursor.classList.toggle('pinch', v); }
+  function clearHover(){ if(hover){ hover.classList.remove('ghover'); hover=null; } if(cursor) cursor.classList.remove('over'); }
+
+  // ---- raw camera landmark -> screen position (inverts the shader's cover-fit + selfie mirror) ----
+  function camAspect(){ const v=FX.getVideo(); return (v&&v.videoWidth&&v.videoHeight)? v.videoWidth/v.videoHeight : 1.3333; }
+  function toScreenN(lx,ly){
+    const sAsp=innerWidth/innerHeight, cAsp=camAspect();
+    let nx,ny;
+    if(sAsp>cAsp){ nx=1-lx; ny=0.5+(ly-0.5)*(sAsp/cAsp); }                      // letterboxed top/bottom
+    else        { nx=0.5-(lx-0.5)*(cAsp/sAsp); ny=ly; }                         // cropped left/right
+    return {nx,ny};
+  }
+
+  // ---- gesture -> page ----
+  const ACTIONABLE='.pick,a,[role="switch"],[data-gback],[data-redial]';
+  function updateHover(x,y){
+    const el=document.elementFromPoint(x,y);
+    const tgt=(el&&el.closest)? el.closest('.pick,a') : null;                      // highlight rows AND links
+    if(tgt!==hover){ if(hover) hover.classList.remove('ghover'); hover=tgt||null; if(hover) hover.classList.add('ghover'); }
+    const onTarget=!!((el&&el.closest&&el.closest(ACTIONABLE)) || mode==='pager'||mode==='denied'||mode==='granted'||mode==='bye');
+    if(cursor) cursor.classList.toggle('over', onTarget);                          // tint the cursor when a pinch would do something
+  }
+  function firePinch(x,y){
+    const t=performance.now(); if(t-lastFire<350) return; lastFire=t;            // debounce double-fires
+    const el=document.elementFromPoint(x,y);
+    if(el&&el.closest){
+      const a=el.closest('a'); if(a&&a.href){ const w=window.open(a.href,'_blank','noopener'); if(!w) flash('pinch can\'t open links — tap it'); return; } // rAF stack lacks user-activation; may be popup-blocked
+      const ctrl=el.closest('[role="switch"],.pick,[data-gback],[data-redial]'); if(ctrl){ ctrl.click(); return; }
+    }
+    if(mode==='pager'||mode==='denied'||mode==='granted'||mode==='bye') advanceFromInput();
+  }
+
+  function processResults(res, now){
+    const hands=(res&&res.landmarks)? res.landmarks : [];
+    if(!hands.length){
+      showCursor(false); setPinchVisual(false); clearHover(); FX.setHands([]);
+      haveCursor=false; pinching=false; return;
+    }
+    // every detected hand pushes the liquid (palm = middle-finger MCP)
+    const shHands=[];
+    for(let h=0; h<hands.length && h<2; h++){
+      const lm=hands[h]; if(!lm||lm.length<21) continue;
+      const pin=clamp(1-(dist(lm[4],lm[8])/(dist(lm[0],lm[9])||1e-4)-0.2)/0.6, 0, 1);
+      const pN=toScreenN(lm[9].x, lm[9].y);
+      shHands.push({ ux:(pN.nx-0.5)*(innerWidth/innerHeight), uy:0.5-pN.ny, pinch:pin });
+    }
+    FX.setHands(shHands);
+    // first hand's index fingertip drives the cursor
+    const p=hands[0];
+    const iN=toScreenN(p[8].x, p[8].y);
+    const tx=clamp(iN.nx*innerWidth,0,innerWidth), ty=clamp(iN.ny*innerHeight,0,innerHeight);
+    if(!haveCursor){ cx=tx; cy=ty; haveCursor=true; } else { cx+=(tx-cx)*CURSOR_LERP; cy+=(ty-cy)*CURSOR_LERP; }
+    moveCursor(cx,cy); showCursor(true); updateHover(cx,cy);
+    // pinch: EMA-smoothed ratio + Schmitt trigger
+    const raw=dist(p[4],p[8])/(dist(p[0],p[9])||1e-4);
+    ratioS+=(raw-ratioS)*RATIO_EMA;
+    if(!pinching && ratioS<PINCH_ON){ pinching=true; setPinchVisual(true); firePinch(cx,cy); }
+    else if(pinching && ratioS>PINCH_OFF){ pinching=false; setPinchVisual(false); }
+  }
+
+  function loop(now){
+    if(!active) return;
+    rafId=requestAnimationFrame(loop);
+    if(document.hidden) return;                                                 // pause work when tab is hidden
+    if(!FX.camActive()){ disable('camera off — gesture mode stopped'); return; } // cam turned off under us
+    const v=FX.getVideo();
+    if(!landmarker || !v || v.readyState<2) return;
+    if(now-lastInfer<INFER_MS) return;
+    if(v.currentTime===lastVideoTime) return;                                   // don't re-feed the same frame
+    lastInfer=now; lastVideoTime=v.currentTime;
+    let res; try{ res=landmarker.detectForVideo(v, now); }catch(e){ return; }   // detectForVideo is synchronous
+    processResults(res, now);
+  }
+
+  function loadModel(){                                                          // idempotent + coalesced: rapid re-toggles can never build two models
+    if(landmarker) return Promise.resolve();
+    if(loadPromise) return loadPromise;
+    loadPromise=(async()=>{
+      const { HandLandmarker, FilesetResolver } = await import(ESM);            // lazy CDN import (opt-in only)
+      const fileset = await FilesetResolver.forVisionTasks(WASM);
+      const base = { runningMode:'VIDEO', numHands:NUM_HANDS, minHandDetectionConfidence:0.5, minHandPresenceConfidence:0.5, minTrackingConfidence:0.5 };
+      try{ landmarker = await HandLandmarker.createFromOptions(fileset, { ...base, baseOptions:{ modelAssetPath:MODEL, delegate:'GPU' } }); }
+      catch(e){ landmarker = await HandLandmarker.createFromOptions(fileset, { ...base, baseOptions:{ modelAssetPath:MODEL, delegate:'CPU' } }); } // GPU ctx may be exhausted by the FX canvas
+    })().finally(()=>{ loadPromise=null; });
+    return loadPromise;
+  }
+
+  function secureOK(){ return window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia; }
+  async function enable(){
+    if(desired || loading) return;                                             // already on / mid-load: ignore re-entry
+    desired=true; loading=true; const myGen=++gen;                             // epoch token: a toggle-off mid-load supersedes us
+    document.body.classList.add('gesture');
+    try{
+      if(!secureOK()){ flash('gesture needs https or localhost'); return disable(); }
+      document.body.classList.add('gesture-load'); gestBtn.setAttribute('aria-busy','true');
+      if(!FX.camActive()){
+        const initiating=!FX.camStarting();                                    // only claim the cam if WE open it (not a racing V press)
+        if(initiating) ownsCam=true;                                           // claim BEFORE the await so a mid-acquisition toggle-off can tear it down
+        flash('starting camera…');
+        const okc=await FX.startCam();
+        if(myGen!==gen) return disable();                                      // superseded while acquiring
+        if(!okc){ if(initiating) ownsCam=false; flash('camera blocked — that\'s fine'); return disable(); }
+      }
+      flash('loading hand tracking (~7MB, one time)…');
+      try{ await loadModel(); }
+      catch(e){ console.warn('[gesture] model load failed:', e); flash('couldn\'t load hand tracking — keyboard & tap still work'); return disable(); }
+      if(myGen!==gen) return disable();                                        // user toggled off mid-load
+      if(FX.hasGL() && !document.body.classList.contains('modern')) FX.switchEra(originFrom(gestBtn)); // ready: reveal the liquid your hands will push
+      document.body.classList.remove('gesture-load'); gestBtn.removeAttribute('aria-busy');
+      active=true; ensureCursor(); reflectSwitches();
+      lastInfer=0; lastVideoTime=-1; haveCursor=false; pinching=false; ratioS=1;
+      flash('point your hand to move · pinch to click');
+      if(rafId) cancelAnimationFrame(rafId);                                   // never double-schedule the loop
+      rafId=requestAnimationFrame(loop);
+    } finally { loading=false; }
+  }
+  function disable(msg){
+    const wasOn=active||desired;
+    desired=false; active=false; gen++;                                         // bump epoch -> supersede any in-flight enable()
+    if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+    clearHover(); showCursor(false); setPinchVisual(false);
+    if(FX.hasGL()) FX.setHands([]);
+    if(landmarker){ try{ landmarker.close(); }catch(e){} landmarker=null; }      // tear the model down (frees WASM + GPU)
+    if(ownsCam) FX.stopCam();                                                    // stop the cam we started (null-safe; aborts an in-flight acquisition via stopReq)
+    ownsCam=false;
+    document.body.classList.remove('gesture','gesture-load'); gestBtn.removeAttribute('aria-busy');
+    reflectSwitches();
+    if(msg && wasOn) flash(msg);
+  }
+
+  return { toggle(){ if(desired) disable(); else enable(); }, isActive:()=>active };
+})();
 
 boot();
 </script>

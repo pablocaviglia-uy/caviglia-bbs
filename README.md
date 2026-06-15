@@ -1,8 +1,10 @@
 # CAVIGLIA BBS
 
 A retro, BBS-style interactive terminal that doubles as a personal landing page.
-Single self-contained `index.html` — no build step, no dependencies (one Google
-Font over CDN). Boots like a dial-up bulletin board, navigable by hotkeys or tap.
+Single self-contained `index.html` — no build step. The base page has no
+dependencies beyond one Google Font; only the opt-in **gesture mode** lazy-loads a
+hand-tracking runtime from a CDN, and only if you press `H`. Boots like a dial-up
+bulletin board, navigable by hotkeys or tap.
 
 **Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/
 
@@ -19,6 +21,12 @@ different visitors at once:
 Press **`T`** to flip between the 1989 BBS and a 2025 "liquid chrome" WebGL skin
 (same menu, new dressing), and **`V`** for an opt-in webcam effect — ASCII in retro,
 a refracted "liquid mirror" in modern. Both are raw inline WebGL, no libraries.
+
+Press **`H`** for an opt-in **gesture mode**: it lazy-loads webcam hand tracking
+(MediaPipe, from a CDN) so you can drive the page from across the room — your
+fingertip moves a cursor, a **pinch** clicks the menu, and in the modern era your
+hands push and ripple the liquid chrome in real time. Strictly opt-in, torn down
+when off, all inference local — nothing leaves the browser.
 
 See `docs/PROJECT.md` for the full design rationale, the puzzle mechanics, and the
 roadmap — that doc is written to let a fresh Claude Code session pick up where
@@ -61,3 +69,6 @@ caviglia-bbs/
 - The Door's access code is intentionally discoverable in the page source
   (base64 in an HTML comment) — that's the puzzle, not a leak.
 - Respects `prefers-reduced-motion`. Keyboard-navigable. Works on mobile (tap).
+- The camera (`V`) and gesture mode (`H`) are **strictly opt-in** and never
+  auto-prompted; tracks stop and the model is torn down when you turn them off.
+  All webcam processing is local — no video or landmark data leaves the browser.

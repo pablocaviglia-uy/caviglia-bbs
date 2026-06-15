@@ -1,8 +1,10 @@
 # PROJECT — CAVIGLIA BBS
 
 Working notes and design rationale, written so a future session (Claude Code or
-otherwise) can continue without re-deriving the thinking. Last updated: 2026-06-14
-— built the Door's layer 3, deployed to GitHub Pages, added the OG preview card.
+otherwise) can continue without re-deriving the thinking. Last updated: 2026-06-15
+— added the opt-in **GESTURE layer** (webcam hand tracking: cursor + pinch-to-
+navigate + hands push the liquid chrome — see §4c). Earlier: the Door's layer 3,
+the GitHub Pages deploy, the OG preview card, and the retro/modern FX layer (§4b).
 
 **Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/ (public project repo,
 served at the `/caviglia-bbs/` subpath — not a user-site, so URLs carry the path).
@@ -113,9 +115,57 @@ Same DOM, two skins, plus an optional webcam. All in raw inline **WebGL (no libs
   when the tab is hidden. No-WebGL devices get the CSS skin only, and turning the
   camera on there auto-falls-back to retro so it never runs blind. A shader-link
   failure sets `ok=false` and hides the canvas (CSS fallback).
-- **New global keys:** `T` (era) and `V` (camera) are handled in the global keydown
-  but it early-returns when the target is `#capture`, so typing the Door answer
-  (which contains `t`) never toggles the era. Keep that guard.
+- **New global keys:** `T` (era), `V` (camera) and `H` (gesture/hands) are handled
+  in the global keydown, but it early-returns when the target is `#capture`, so
+  typing the Door answer (which contains `t` and `h`) never toggles them. Keep that
+  guard.
+
+## 4c. The GESTURE layer — control the page with your hands (opt-in)
+
+Reach out and touch the board from across the room. A third HUD pill — **hands**,
+hotkey **`H`** — turns on webcam **hand tracking**. Same opt-in contract as the
+camera (§8): never auto-prompted, torn down on toggle-off, everything stays local.
+
+- **What it does.** Your index fingertip drives an on-screen **cursor**; a **pinch**
+  (thumb + index) "clicks" whatever it's over — menu rows, the era/cam/hands pills,
+  the Door's back line, or any "press any key to advance" screen. So the whole
+  recruiter path (About / Work / Contact / LinkedIn) becomes usable hands-free,
+  across the room, with no keyboard or touch. In the **modern** era your hand(s)
+  also **push and ripple the liquid-chrome shader** in real time — landmarks feed
+  `uHand[2]` / `uHandOn[2]` / `uPinch[2]`; the chrome parts around your palm and a
+  pinch fires a bright radial burst. Two hands on desktop, one on mobile.
+
+- **Still self-contained.** The base page ships zero tracking code. On opt-in it
+  lazy-loads **MediaPipe Tasks Vision (HandLandmarker)** via dynamic `import()` from
+  jsDelivr (pinned `@0.10.35`) plus the `hand_landmarker.task` model (~7.5 MB) from
+  Google's model CDN. A recruiter who never presses `H` downloads none of it. (One
+  HTML file + a dynamic CDN import is still "no build step.") MediaPipe runs
+  single-threaded WASM + a WebGL2 GPU delegate (with a **mandatory CPU fallback** —
+  the FX canvas already holds a WebGL context, so the delegate's second context can
+  fail). It needs **no COOP/COEP / cross-origin-isolation** headers, so it works on
+  plain GitHub Pages.
+
+- **Reuses the one camera.** GESTURE never opens a second stream — it borrows the
+  FX module's `getVideo()`, starts the cam only if it wasn't already on, and stops
+  it on exit only if *it* started it (`ownsCam`). Turning the cam off via the `cam`
+  pill drops gesture mode too (it can't track without the feed). Enabling gesture
+  jumps to the modern era *after* the model loads, so a failed load leaves you
+  exactly where you were.
+
+- **Perf / lifecycle (same discipline as §4b).** A second rAF loop runs
+  `detectForVideo` (synchronous) only while active, **double-gated** — capped to
+  ~30fps desktop / ~18fps mobile *and* skipped unless the video frame actually
+  changed — and paused when the tab is hidden. The model is created **once** and
+  `close()`d on toggle-off (frees the WASM heap + GPU context). `numHands` is 1 on
+  mobile. With no WebGL, gesture still works as a cursor over the retro ASCII cam
+  (no liquid push). Insecure context / camera denied / model-load failure each
+  flash a friendly line and fall back cleanly — the keyboard + tap paths are never
+  touched. `toScreenN()` inverts the shader's cover-fit + selfie-mirror so the
+  cursor and the push land where your hand actually is.
+
+- **Privacy.** Camera frames and landmarks **never leave the browser** — inference
+  is 100% in-page (WASM/WebGL). The only network traffic is the two static CDN
+  downloads (runtime + model), and only after you opt in.
 
 ## 5. The Door puzzle (current state)
 
@@ -161,8 +211,10 @@ Pablo's stated ethos — plus a "say 'node 1' when you message me" handshake).
 **Done:** boot sequence, ANSI logo, menu (hotkey + tap), about/work/contact
 screens, the Door (3-layer puzzle + granted/denied + console shell), logoff/redial,
 reduced-motion + mobile support, Open Graph tags for the LinkedIn preview card,
-the real-mobile `tel:` dial line, and the **FX layer** (retro/modern era skin via
-WebGL + opt-in ASCII/liquid-mirror webcam — see §4b), perf-hardened.
+the real-mobile `tel:` dial line, the **FX layer** (retro/modern era skin via
+WebGL + opt-in ASCII/liquid-mirror webcam — see §4b), perf-hardened, and the
+**GESTURE layer** (opt-in MediaPipe hand tracking: index-finger cursor +
+pinch-to-navigate + hands that push the liquid chrome — see §4c).
 
 **Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
 `main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
