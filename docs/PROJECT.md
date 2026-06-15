@@ -1,8 +1,11 @@
 # PROJECT — CAVIGLIA BBS
 
 Working notes and design rationale, written so a future session (Claude Code or
-otherwise) can continue without re-deriving the thinking. Last updated: handoff
-from the chat session that created the project.
+otherwise) can continue without re-deriving the thinking. Last updated: 2026-06-14
+— built the Door's layer 3, deployed to GitHub Pages, added the OG preview card.
+
+**Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/ (public project repo,
+served at the `/caviglia-bbs/` subpath — not a user-site, so URLs carry the path).
 
 ---
 
@@ -70,40 +73,67 @@ Everything is in `index.html`: HTML shell + `<style>` + one `<script>`.
 
 ## 5. The Door puzzle (current state)
 
-A real, working **two-step** puzzle:
+A real, working **three-layer** puzzle. Layers 1–2 live in the page UI; layer 3
+lives entirely in the browser console (so the recruiter path never sees it).
 
-1. **Read the source.** The Door says the board "keeps its keys in the walls /
-   real ones read the source."
-2. **Decode the key.** Near the top of `index.html` an HTML comment contains a
-   base64 string: `ZGVsZXRlY29kZQ==` → decodes to **`deletecode`** (a nod to
-   Pablo's "I'd rather delete code than add it"). Entering it → **ACCESS GRANTED**,
-   a personal note, and the LinkedIn link.
-3. Wrong answers → a friendly **ACCESS DENIED** with a nudge (never a dead end).
-4. **Deeper egg:** the granted screen points at the browser console, where a
-   message admits "there is no layer 3 — yet" and invites the visitor to suggest
-   one when they talk. (Intentional hook.)
+**Layer 1 — read the source.** The Door says the board "keeps its keys in the
+walls / real ones read the source."
 
-The answer check is plaintext (`DOOR_KEY = "deletecode"`); the base64 is the human
-puzzle, not used by the code.
+**Layer 2 — decode the key.** Near the top of `index.html` an HTML comment
+contains a base64 string: `ZGVsZXRlY29kZQ==` → decodes to **`deletecode`** (a nod
+to Pablo's "I'd rather delete code than add it"). Entering it → **ACCESS
+GRANTED**, a personal note, the LinkedIn link, and a pointer at the console.
+Wrong answers → a friendly **ACCESS DENIED** with a nudge (never a dead end).
+The answer check is plaintext (`DOOR_KEY = "deletecode"`); the base64 is the
+human puzzle, not used by the code.
+
+**Layer 3 — reverse-engineer the seal (console-only).** On ACCESS GRANTED,
+`wireShell()` runs once and attaches a `window.sysop` maintenance shell
+(`help / whoami / ls / cat / open / hint`). Everything is scoped inside
+`wireShell`'s closure — only `window.sysop` leaks. One file, `sysop.note.sealed`,
+holds a sealed blob `WV5LU1lDR1pGTw==`. The passphrase is **not** in the source;
+only the blob is. The verifier `sysop.open(pass)` computes
+`seal(pass) === SIGIL`, where `seal` is a symmetric single-byte XOR (key `42`)
+then base64. You solve it by reading the verifier (`sysop.open.toString()` or the
+page source) and **inverting** the transform in the console:
+`atob(blob)` → XOR each byte with 42 → `staysimple`. Then `sysop.open("staysimple")`
+prints the final payoff (the `deletecode → staysimple` arc — both are literally
+Pablo's stated ethos — plus a "say 'node 1' when you message me" handshake).
+
+  - Solve paths, all self-contained, no dead ends: read the page source; or read
+    `sysop.open.toString()`; or brute-force the 1-byte key (only 42 yields clean
+    lowercase); or follow `sysop.hint()`, which explains the symmetry without
+    handing over the key.
+  - `open()` normalizes input (`toLowerCase`, strips non-alphanumerics) so
+    `"Stay Simple"` works. `grantLayer3()` is idempotent (`opened` flag).
+  - To change the answer: pick a new passphrase, recompute the blob with
+    `btoa([...p].map(c=>String.fromCharCode(c.charCodeAt(0)^42)).join(''))`, and
+    replace `SIGIL`. (Keep the answer `[a-z0-9]` so the XOR stays printable.)
 
 ## 6. Status
 
 **Done:** boot sequence, ANSI logo, menu (hotkey + tap), about/work/contact
-screens, the Door (2-step puzzle + granted/denied + console egg), logoff/redial,
+screens, the Door (3-layer puzzle + granted/denied + console shell), logoff/redial,
 reduced-motion + mobile support, Open Graph tags for the LinkedIn preview card.
 
-**Placeholders / TODO before/after publishing:**
-- Set `og:url` in `index.html` to the real Pages URL once live.
-- (Optional) add a real screenshot as `preview.png` in the repo and uncomment the
-  `og:image` tag so the LinkedIn card has an image.
+**Deployed:** public repo `pablocaviglia-uy/caviglia-bbs`, GitHub Pages from
+`main` / root → https://pablocaviglia-uy.github.io/caviglia-bbs/. `og:url` and
+`og:image` point at that subpath; `preview.png` (1200×630, the main menu) is
+committed at the repo root and served alongside `index.html`.
+
+**If you regenerate `preview.png`:** it's a headless-Chrome shot of the live menu.
+Serve the folder (`python3 -m http.server PORT`), then:
+`"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new
+--disable-gpu --hide-scrollbars --window-size=1200,630 --virtual-time-budget=12000
+--screenshot=preview.png http://localhost:PORT/`. The virtual-time budget fast-
+forwards the boot animation so it lands on the menu.
 
 ## 7. Roadmap / ideas for next sessions
 
-- **Build "layer 3"** of the Door — the console currently admits it doesn't exist.
-  Candidate concepts discussed: a console/source/network ARG (clues across
-  console logs, comments, and a faked fetch); a small reverse-engineering /
-  decode chain; or a "find-and-fix the race condition" challenge (plays to the
-  offline-first / concurrency depth).
+- **Layer 3 is built** (console reverse-engineering shell — see §5). If you want a
+  *layer 4* someday, the cleanest hook is inside the shell: `sysop` could expose a
+  "node 2" you connect to, or a faked `fetch` whose response carries the next clue.
+  Keep the same rule — never gate the recruiter payoff behind any of it.
 - **More "rooms"** in the BBS spirit: a guestbook / message board, a "door game"
   (a tiny playable thing — Pablo has built MOT/predator-prey sims and WebXR before
   and could drop a real mini-game behind `[G]`).

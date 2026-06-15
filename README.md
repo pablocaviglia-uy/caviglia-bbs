@@ -4,7 +4,7 @@ A retro, BBS-style interactive terminal that doubles as a personal landing page.
 Single self-contained `index.html` — no build step, no dependencies (one Google
 Font over CDN). Boots like a dial-up bulletin board, navigable by hotkeys or tap.
 
-**Live (once deployed):** https://YOUR-USERNAME.github.io/
+**Live:** https://pablocaviglia-uy.github.io/caviglia-bbs/
 
 ## What it is
 
@@ -32,14 +32,14 @@ open index.html
 
 ## Deploy (GitHub Pages)
 
-For a user site served at the root of your username:
+Already live, served from the **public** project repo
+[`pablocaviglia-uy/caviglia-bbs`](https://github.com/pablocaviglia-uy/caviglia-bbs)
+via Pages (Deploy from branch → `main` → `/root`) at
+https://pablocaviglia-uy.github.io/caviglia-bbs/.
 
-1. Create a **public** repo named exactly `your-username.github.io`.
-2. Push this folder to it (`index.html` at the root).
-3. Pages auto-enables for user-site repos. (For any other repo name:
-   Settings → Pages → Source: Deploy from branch → `main` → `/root`.)
-4. Visit `https://your-username.github.io/`.
-5. Update the `og:url` meta tag in `index.html` to that final URL.
+Because it's a *project* repo (not a `username.github.io` user-site), Pages serves
+it under the `/caviglia-bbs/` path — so `og:url` and `og:image` in `index.html`
+carry that subpath. To redeploy, just push to `main`; Pages rebuilds on its own.
 
 ## Structure
 
