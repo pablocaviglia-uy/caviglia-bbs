@@ -125,6 +125,10 @@ const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
 const LINKEDIN = "https://www.linkedin.com/in/pablo-caviglia/";
 const BITBUCKET = "https://bitbucket.org/pablocaviglia";
 const DOOR_KEY = "deletecode"; // hidden (base64) in the page source
+// sysop's line — assembled from parts so a naive scraper can't regex it straight from source
+const PHONE_PARTS = ['+598','91','744','036'];
+const phoneDisp = PHONE_PARTS.join(' ');
+const phoneTel  = 'tel:' + PHONE_PARTS.join('').replace(/[^\d+]/g,'');
 
 let mode = 'boot';   // boot | menu | pager | door | denied | granted | bye
 
@@ -148,7 +152,10 @@ const LOGO =
 
 async function boot(){
   clear(); mode='boot';
-  await type('ATDT 555-0150','dim'); await wait(260);
+  await type('ATDT ' + phoneDisp, 'dim');
+  const atdtLine = screenEl.lastChild;
+  if(atdtLine) atdtLine.innerHTML = 'ATDT <a class="cyan" href="'+phoneTel+'" aria-label="call the sysop" style="text-decoration:none;border-bottom:1px dotted currentColor">'+phoneDisp+'</a>';
+  await wait(260);
   const dots=add('CONNECTING','dim');
   for(let i=0;i<4;i++){ await wait(220); dots.textContent+='.'; }
   await wait(220); add('<span class="grn">CARRIER DETECTED</span>'); await wait(180);

@@ -61,6 +61,10 @@ Everything is in `index.html`: HTML shell + `<style>` + one `<script>`.
   `boot | menu | pager | door | denied | granted | bye`.
 - Screens are functions that `clear()` then `add()` lines (BBS-style full redraws).
 - `boot()` types the dial-up connect sequence, draws the logo, then `drawMenu()`.
+  The `ATDT` line dials Pablo's **real** mobile (a `tel:` link, tappable to call) —
+  intentional, not a placeholder. The number is assembled from `PHONE_PARTS` at
+  runtime (mild anti-scrape); Pablo accepted the public-exposure tradeoff. Don't
+  revert it to a fake 555 number.
 - **Menu** rows are both keyboard (single-key hotkeys A/W/C/G/Q) **and** clickable
   (so phones work without a keyboard). This dual input is important — don't break
   it.
